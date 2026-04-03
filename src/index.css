@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Newsreader", serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Work Sans", sans-serif;
+
+  --color-primary: #17341d;
+  --color-primary-container: #2d4b32;
+  --color-tertiary: #003714;
+  --color-tertiary-fixed: #66ff8e;
+  --color-on-tertiary-fixed: #002109;
+  --color-surface: #f5fcef;
+  --color-surface-container-low: #eff6e9;
+  --color-surface-container-high: #e3eade;
+  --color-surface-container-highest: #dee5d8;
+  --color-secondary: #77574d;
+  --color-on-surface-variant: #424842;
+  --color-outline-variant: #c2c8bf;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-primary font-body;
+  }
+}
+
+.glass-panel {
+  background: rgba(245, 252, 239, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
