@@ -1,22 +1,27 @@
 @import "tailwindcss";
 
 @theme {
-  --font-headline: "Newsreader", serif;
-  --font-body: "Inter", sans-serif;
-  --font-label: "Work Sans", sans-serif;
+  --font-headline: "Sora", sans-serif;
+  --font-body: "Outfit", sans-serif;
+  --font-label: "Sora", sans-serif;
 
-  --color-primary: #17341d;
-  --color-primary-container: #2d4b32;
-  --color-tertiary: #003714;
-  --color-tertiary-fixed: #66ff8e;
-  --color-on-tertiary-fixed: #002109;
-  --color-surface: #f5fcef;
-  --color-surface-container-low: #eff6e9;
-  --color-surface-container-high: #e3eade;
-  --color-surface-container-highest: #dee5d8;
-  --color-secondary: #77574d;
+  --color-primary: #064A17; /* Dark Green */
+  --color-primary-container: #064A17;
+  --color-tertiary: #868C14; /* Olive Green */
+  --color-tertiary-fixed: #F7C424; /* Yellow */
+  --color-on-tertiary-fixed: #064A17;
+  --color-surface: #FFFFFF;
+  --color-surface-container-low: #f8f9f8;
+  --color-surface-container-high: #f0f2f0;
+  --color-surface-container-highest: #e8ebe8;
+  --color-secondary: #3C9EA0; /* Teal */
   --color-on-surface-variant: #424842;
   --color-outline-variant: #c2c8bf;
+  
+  --color-logo-yellow: #F7C424;
+  --color-logo-teal: #3C9EA0;
+  --color-logo-olive: #868C14;
+  --color-logo-dark: #064A17;
 }
 
 @layer base {
