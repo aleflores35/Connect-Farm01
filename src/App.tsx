@@ -37,6 +37,7 @@ import { useState } from 'react';
 import { cn } from '@/src/lib/utils';
 
 const WHATSAPP_NUMBER = "555136300682";
+const WHATSAPP_DISPLAY = "+55 51 3630-0682";
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
 
 // --- Components ---
@@ -70,82 +71,74 @@ const FloatingWhatsApp = () => (
 );
 
 const Logo = ({ className, variant = 'default' }: { className?: string, variant?: 'default' | 'negative' }) => {
-  const colors = {
-    teal: "#3C9EA0",
-    olive: "#868C14",
-    yellow: "#F7C424",
-    darkGreen: "#064A17",
-  };
-
   return (
-    <div className={cn("flex items-center gap-3", className)}>
-      {/* Official Logo Symbol SVG - Precise Representation */}
-      <svg width="44" height="44" viewBox="0 0 100 100" className="shrink-0">
-        <defs>
-          <clipPath id="brand-circle">
-            <circle cx="50" cy="50" r="50" />
-          </clipPath>
-        </defs>
-        <g clipPath="url(#brand-circle)">
-          {/* Top Left: Teal */}
-          <path d="M50 50 L50 0 A50 50 0 0 0 0 50 Z" fill={colors.teal} />
-          {/* Top Right: Olive */}
-          <path d="M50 50 L100 50 A50 50 0 0 0 50 0 Z" fill={colors.olive} />
-          {/* Bottom Left: Yellow */}
-          <path d="M50 50 L0 50 A50 50 0 0 0 50 100 Z" fill={colors.yellow} />
-          {/* Bottom Right: Dark Green */}
-          <path d="M50 50 L50 100 A50 50 0 0 0 100 50 Z" fill={colors.darkGreen} />
-          
-          {/* The "Hill" overlay in the bottom half */}
-          <path d="M0 70 C20 70 40 60 50 50 L100 50 L100 100 L0 100 Z" fill={colors.darkGreen} />
-          
-          {/* White Lines (Separators) */}
-          <line x1="50" y1="0" x2="50" y2="50" stroke="white" strokeWidth="5" />
-          <line x1="0" y1="50" x2="50" y2="50" stroke="white" strokeWidth="5" />
-          <line x1="50" y1="50" x2="85" y2="15" stroke="white" strokeWidth="5" />
-          
-          {/* Furrows (Agricultural Rows) */}
-          <path d="M15 100 C15 80 45 70 100 70" stroke="white" strokeWidth="4" fill="none" />
-          <path d="M45 100 C45 90 65 85 100 85" stroke="white" strokeWidth="4" fill="none" />
-        </g>
-      </svg>
-      <div className="font-headline font-bold text-2xl tracking-tighter flex items-center">
-        <span className={cn(variant === 'negative' ? 'text-white' : 'text-tertiary')}>CONNECT</span>
-        <span className={cn(variant === 'negative' ? 'text-white' : 'text-primary')}>FARM</span>
-      </div>
+    <div className={cn("flex items-center", className)}>
+      <img 
+        src="/logo.png" 
+        alt="ConnectFARM Logo" 
+        className={cn(
+          "h-10 md:h-12 w-auto object-contain",
+          variant === 'negative' && "brightness-0 invert"
+        )}
+        referrerPolicy="no-referrer"
+      />
     </div>
   );
 };
 
-const Navbar = () => {
+const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePage: (page: string) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
 
+  const navLinks = [
+    { name: 'HOME', id: 'home' },
+    { name: 'QUEM SOMOS', id: 'quem-somos' },
+    { name: 'CASES', id: 'cases' },
+    { name: 'CONTATO', id: 'contato' },
+    { name: 'PROGRAMA DE INTEGRIDADE', id: 'integridade' },
+  ];
+
   return (
-    <nav className="sticky top-0 z-50 bg-surface/80 backdrop-blur-md border-b border-outline-variant/20">
+    <nav className="sticky top-0 z-50 bg-white border-b border-outline-variant/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-20">
+        <div className="flex justify-between h-24">
           <div className="flex items-center">
-            <Logo />
+            <button onClick={() => setActivePage('home')}>
+              <Logo />
+            </button>
           </div>
           
-          <div className="hidden md:flex items-center space-x-8">
-            <a href="#" className="text-primary font-medium hover:text-tertiary transition-colors">Home</a>
-            <a href="#servicos" className="text-on-surface-variant hover:text-primary transition-colors">Serviços</a>
-            <a href="#cases" className="text-on-surface-variant hover:text-primary transition-colors">Cases</a>
-            <a href="#contato" className="text-on-surface-variant hover:text-primary transition-colors">Contato</a>
-            <a 
-              href={WHATSAPP_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bg-tertiary text-white px-6 py-2.5 rounded-lg font-label text-sm font-semibold tracking-wide hover:bg-primary transition-all flex items-center gap-2"
-            >
-              <WhatsAppIcon size={16} />
-              Whatsapp Suporte
-            </a>
+          <div className="hidden lg:flex items-center space-x-6">
+            {navLinks.map((link) => (
+              <button
+                key={link.id}
+                onClick={() => setActivePage(link.id)}
+                className={cn(
+                  "text-xs font-bold tracking-wider transition-colors hover:text-[#868C14]",
+                  activePage === link.id ? "text-[#868C14]" : "text-[#064A17]"
+                )}
+              >
+                {link.name}
+              </button>
+            ))}
+            
+            <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
+              <div className="flex items-center gap-1 cursor-pointer">
+                <img 
+                  src="https://flagcdn.com/w20/br.png" 
+                  alt="Brasil" 
+                  className="w-5 h-auto"
+                />
+                <span className="text-[10px] text-gray-400">▼</span>
+              </div>
+              
+              <button className="bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#e5b521] transition-all shadow-sm">
+                Acesse sua Conta
+              </button>
+            </div>
           </div>
 
-          <div className="md:hidden flex items-center">
-            <button onClick={() => setIsOpen(!isOpen)} className="text-primary">
+          <div className="lg:hidden flex items-center">
+            <button onClick={() => setIsOpen(!isOpen)} className="text-[#064A17]">
               {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
           </div>
@@ -157,30 +150,216 @@ const Navbar = () => {
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="md:hidden bg-surface border-b border-outline-variant/20 px-4 pt-2 pb-6 space-y-4"
+          className="lg:hidden bg-white border-b border-outline-variant/20 px-4 pt-2 pb-6 space-y-4"
         >
-          <a href="#" className="block text-primary font-medium">Home</a>
-          <a href="#servicos" className="block text-on-surface-variant">Serviços</a>
-          <a href="#cases" className="block text-on-surface-variant">Cases</a>
-          <a href="#contato" className="block text-on-surface-variant">Contato</a>
-          <a 
-            href={WHATSAPP_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-tertiary text-white px-6 py-3 rounded-lg font-label text-sm font-semibold tracking-wide flex items-center justify-center gap-2"
-          >
-            <WhatsAppIcon size={16} />
-            Whatsapp Suporte
-          </a>
+          {navLinks.map((link) => (
+            <button
+              key={link.id}
+              onClick={() => {
+                setActivePage(link.id);
+                setIsOpen(false);
+              }}
+              className="block w-full text-left text-xs font-bold tracking-wider text-[#064A17] py-2"
+            >
+              {link.name}
+            </button>
+          ))}
+          <button className="w-full bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm">
+            Acesse sua Conta
+          </button>
         </motion.div>
       )}
     </nav>
   );
 };
 
+const WhistleblowingChannel = () => {
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [wantsContact, setWantsContact] = useState(false);
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!message) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch('/api/denuncia', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          isAnonymous,
+          wantsContact,
+          name: isAnonymous ? 'Anônimo' : name,
+          phone: isAnonymous ? 'Anônimo' : phone,
+          message,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Erro ao enviar denúncia');
+      }
+
+      setSubmitted(true);
+    } catch (err) {
+      setError('Ocorreu um erro ao enviar sua denúncia. Por favor, tente novamente.');
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (submitted) {
+    return (
+      <section className="py-40 px-4 text-center bg-white min-h-[calc(100vh-96px)] flex flex-col items-center justify-center">
+        <div className="w-20 h-20 bg-[#064A17] rounded-full flex items-center justify-center text-white mb-8">
+          <CheckCircle2 size={40} />
+        </div>
+        <h2 className="text-4xl font-bold text-[#064A17] mb-4">Denúncia Enviada com Sucesso</h2>
+        <p className="text-gray-600 max-w-md mx-auto mb-8">
+          Sua denúncia foi recebida e será analisada pelo nosso comitê de ética com total sigilo e profissionalismo.
+        </p>
+        <button 
+          onClick={() => setSubmitted(false)}
+          className="text-[#868C14] font-bold hover:underline"
+        >
+          Fazer outra denúncia
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="py-20 px-4 sm:px-6 lg:px-8 bg-white min-h-[calc(100vh-96px)]">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
+        <div className="space-y-8">
+          <div className="space-y-2">
+            <h1 className="text-5xl lg:text-6xl font-bold text-[#F7C424] leading-tight">
+              Canal de
+            </h1>
+            <h2 className="text-5xl lg:text-6xl font-bold text-[#064A17] leading-tight">
+              Denúncias
+            </h2>
+          </div>
+          
+          <p className="text-[#064A17] text-lg leading-relaxed max-w-xl">
+            A ConnectFarm visa estar inserida no Cadastro Agroíntegro do Ministério da Agricultura e MapaBrasil. Portanto, nos comprometemos com a implementação de práticas e condutas de integridade, ética e transparência. Por isso, abrimos este canal para que qualquer pessoa nos relate e denuncie qualquer atividade relacionada a nós que ameace ferir esse comprometimento. Utilize o formulário seguro abaixo para fazer sua denúncia. Ela é muito importante para nós e pode ser feita de maneira anônima.
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white p-2 space-y-6">
+          <div className="space-y-4">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={cn(
+                "w-5 h-5 border-2 rounded flex items-center justify-center transition-colors",
+                isAnonymous ? "bg-[#064A17] border-[#064A17]" : "border-gray-300 group-hover:border-[#064A17]"
+              )}>
+                {isAnonymous && <CheckCircle2 size={14} className="text-white" />}
+              </div>
+              <input 
+                type="checkbox" 
+                className="hidden" 
+                checked={isAnonymous} 
+                onChange={() => setIsAnonymous(!isAnonymous)} 
+              />
+              <span className="text-sm text-gray-600">Desejo fazer a denúncia sem me identificar.</span>
+            </label>
+
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={cn(
+                "w-5 h-5 border-2 rounded flex items-center justify-center transition-colors",
+                wantsContact ? "bg-[#064A17] border-[#064A17]" : "border-gray-300 group-hover:border-[#064A17]"
+              )}>
+                {wantsContact && <CheckCircle2 size={14} className="text-white" />}
+              </div>
+              <input 
+                type="checkbox" 
+                className="hidden" 
+                checked={wantsContact} 
+                onChange={() => setWantsContact(!wantsContact)} 
+              />
+              <span className="text-sm text-gray-600">Quero que entrem em contato comigo para falar sobre esta denúncia.</span>
+            </label>
+          </div>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-500">Nome</label>
+              <input 
+                type="text" 
+                placeholder="Digite seu nome aqui"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
+                disabled={isAnonymous}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-500">Telefone</label>
+              <input 
+                type="tel" 
+                placeholder="+55 51 3630-0682"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
+                disabled={isAnonymous}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-gray-500">Mensagem</label>
+              <textarea 
+                placeholder="Digite sua mensagem aqui"
+                rows={6}
+                value={message}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all resize-none"
+                required
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="p-4 bg-red-50 text-red-600 rounded-lg text-sm flex items-center gap-2">
+              <AlertTriangle size={16} />
+              {error}
+            </div>
+          )}
+
+          <button 
+            type="submit"
+            disabled={isSubmitting}
+            className={cn(
+              "bg-[#064A17] text-white px-10 py-3 rounded-full font-bold hover:bg-[#043310] transition-all shadow-md flex items-center gap-2",
+              isSubmitting && "opacity-70 cursor-not-allowed"
+            )}
+          >
+            {isSubmitting ? (
+              <>
+                <RefreshCw size={18} className="animate-spin" />
+                Enviando...
+              </>
+            ) : "Enviar"}
+          </button>
+        </form>
+      </div>
+    </section>
+  );
+};
+
 const Hero = () => {
   return (
-    <section className="relative min-h-[90vh] flex items-center overflow-hidden">
+    <section className="relative h-[calc(100vh-5rem)] flex items-center overflow-hidden">
       <div className="absolute inset-0 z-0">
         <img 
           src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2000&auto=format&fit=crop" 
@@ -188,43 +367,44 @@ const Hero = () => {
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/90 via-primary/60 to-transparent" />
+        <div className="absolute inset-0 bg-black/30" />
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full py-12 md:py-20">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
           <motion.div 
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
-            className="space-y-8"
+            className="lg:col-span-7 space-y-4 lg:space-y-6"
           >
-            <h1 className="font-headline text-5xl md:text-8xl text-white leading-[1.1] tracking-tight font-bold">
-              Você sabe o que tem <br />
-              <span className="text-tertiary-fixed">debaixo da sua terra?</span>
-            </h1>
-            <p className="text-white/90 text-xl md:text-2xl font-body max-w-xl leading-relaxed">
-              A ConnectFARM vai até a sua fazenda, coleta os dados do seu solo e te mostra exatamente o que precisa ser feito para produzir mais — gastando menos.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 pt-4">
-              <a 
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-tertiary text-white px-8 py-5 rounded-xl font-body font-bold text-lg hover:scale-105 transition-transform shadow-xl flex items-center justify-center gap-3"
-              >
-                Quero um diagnóstico da minha fazenda
-                <ArrowRight size={20} />
-              </a>
-              <a 
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="glass-panel text-white border border-white/20 px-8 py-4 rounded-xl font-body font-bold text-lg flex items-center justify-center gap-2 hover:bg-white/10 transition-colors"
-              >
-                <WhatsAppIcon size={20} />
-                Falar com um agrônomo
-              </a>
+            <div className="space-y-0">
+              <h1 className="font-headline text-[1.9rem] sm:text-[2.5rem] md:text-[3.2rem] lg:text-[3.8rem] text-white leading-[1.0] tracking-tighter">
+                <span className="text-[#F7C424]">A Terra</span> não <br />
+                aceita desaforo <br />
+                e o <span className="text-[#F7C424]">seu bolso</span> não aceita
+              </h1>
+              <h2 className="font-headline text-[1.9rem] sm:text-[2.5rem] md:text-[3.2rem] lg:text-[3.8rem] text-white leading-[1.0] tracking-tighter">
+                erro.
+              </h2>
+            </div>
+            
+            <div className="max-w-xl space-y-6">
+              <p className="text-white text-[22px] leading-[37px] font-body">
+                Dado sem agronomia é só planilha, e agronomia sem dado é só opinião. A ConnectFARM entrega a inteligência que o campo exige: diagnósticos reais para quem não tem tempo a perder com "acho que vai dar bom".
+              </p>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <a 
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-[#868C14] text-white px-8 py-4 rounded-xl font-body font-bold text-lg hover:bg-[#6d7210] transition-all shadow-xl flex items-center justify-center gap-3"
+                >
+                  Quero um diagnóstico
+                  <ArrowRight size={20} />
+                </a>
+              </div>
             </div>
           </motion.div>
 
@@ -232,57 +412,115 @@ const Hero = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
-            className="hidden lg:flex justify-end"
+            className="hidden lg:flex lg:col-span-5 justify-end"
           >
-            <div className="glass-panel p-8 rounded-2xl shadow-2xl max-w-sm border border-white/30 space-y-6">
+            <div className="bg-[#E2E4D1] p-8 rounded-[2rem] shadow-2xl w-full max-w-md space-y-8">
               <div className="flex items-center gap-4">
-                <div className="h-14 w-14 rounded-xl bg-primary flex items-center justify-center text-tertiary-fixed shadow-inner">
-                  <BarChart3 size={28} />
+                <div className="h-16 w-16 rounded-2xl bg-[#064A17] flex items-center justify-center text-[#F7C424] shadow-inner">
+                  <BarChart3 size={32} />
                 </div>
                 <div>
-                  <p className="font-label text-[10px] uppercase tracking-[0.2em] text-on-surface-variant font-bold">Live Field Data</p>
-                  <p className="font-headline font-bold text-2xl text-primary">Talhão 04 - Norte</p>
+                  <p className="font-label text-xs uppercase tracking-[0.2em] text-[#064A17]/60 font-bold">DADOS REAIS DO CAMPO</p>
+                  <p className="font-headline font-bold text-3xl text-[#064A17]">Talhão 04 – Norte</p>
                 </div>
               </div>
               
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-on-surface-variant font-medium">Biomassa</span>
-                    <span className="font-bold text-primary">RVI 0,78</span>
+              <div className="space-y-6">
+                <div className="space-y-3">
+                  <div className="flex justify-between text-lg font-bold text-[#064A17]">
+                    <span>Biomassa</span>
+                    <span>RVI 0,78</span>
                   </div>
-                  <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                  <div className="h-3 bg-[#064A17]/10 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: '78%' }}
                       transition={{ duration: 1.5, delay: 1 }}
-                      className="h-full bg-tertiary" 
+                      className="h-full bg-[#868C14]" 
                     />
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-on-surface-variant font-medium">Vigor Vegetativo</span>
-                    <span className="font-bold text-primary">NDVI 0.82</span>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-lg font-bold text-[#064A17]">
+                    <span>Vigor Vegetativo</span>
+                    <span>NDVI 0.82</span>
                   </div>
-                  <div className="h-1.5 bg-surface-container-highest rounded-full overflow-hidden">
+                  <div className="h-3 bg-[#064A17]/10 rounded-full overflow-hidden">
                     <motion.div 
                       initial={{ width: 0 }}
                       animate={{ width: '82%' }}
                       transition={{ duration: 1.5, delay: 1.2 }}
-                      className="h-full bg-tertiary-fixed" 
+                      className="h-full bg-[#F7C424]" 
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2 flex items-center gap-2 text-xs text-on-surface-variant font-medium">
-                <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+              <div className="pt-4 flex items-center gap-3 text-sm text-[#064A17]/70 font-bold">
+                <div className="h-2.5 w-2.5 rounded-full bg-[#3C9EA0] animate-pulse" />
                 Sincronizado via Satélite Radar (SAR)
               </div>
             </div>
           </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const ForWhomSection = () => {
+  return (
+    <section className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+          <div className="space-y-8">
+            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">PARA QUEM É A CONNECTFARM</span>
+            <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
+              Para o produtor que trata a fazenda como empresa.
+            </h2>
+            <div className="space-y-6 text-on-surface-variant text-lg leading-relaxed">
+              <p>
+                Você não planta por tradição. Você planta porque é um negócio — e você quer que ele seja rentável. Você acompanha custo, cobra resultado, e sabe que cada hectare precisa trabalhar por você.
+              </p>
+              <p>
+                A ConnectFARM foi feita para esse produtor: aquele que está no escritório ou na fazenda, que pode ser engenheiro agrônomo, advogado, empresário ou gestor de família — mas que, no fim do dia, olha para os números e cobra resultado.
+              </p>
+              <p className="font-bold text-primary">
+                Se você é esse produtor, a gente tem muito a conversar.
+              </p>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-primary/5 p-8 rounded-3xl border border-primary/10 space-y-4">
+              <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-white">
+                <Settings size={24} />
+              </div>
+              <h4 className="font-headline font-bold text-xl text-primary">Foco em Gestão</h4>
+              <p className="text-sm text-on-surface-variant">Para quem olha a fazenda como uma unidade de negócio.</p>
+            </div>
+            <div className="bg-tertiary/5 p-8 rounded-3xl border border-tertiary/10 space-y-4 mt-8">
+              <div className="h-12 w-12 rounded-xl bg-tertiary flex items-center justify-center text-white">
+                <BarChart3 size={24} />
+              </div>
+              <h4 className="font-headline font-bold text-xl text-primary">Cultura de Resultado</h4>
+              <p className="text-sm text-on-surface-variant">Decisões baseadas no que realmente traz retorno para o seu bolso.</p>
+            </div>
+            <div className="bg-secondary/5 p-8 rounded-3xl border border-secondary/10 space-y-4">
+              <div className="h-12 w-12 rounded-xl bg-secondary flex items-center justify-center text-white">
+                <Users size={24} />
+              </div>
+              <h4 className="font-headline font-bold text-xl text-primary">Sucessão Familiar</h4>
+              <p className="text-sm text-on-surface-variant">Tecnologia para profissionalizar a gestão da família.</p>
+            </div>
+            <div className="bg-primary/5 p-8 rounded-3xl border border-primary/10 space-y-4 mt-8">
+              <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-white">
+                <Zap size={24} />
+              </div>
+              <h4 className="font-headline font-bold text-xl text-primary">Eficiência em Escala</h4>
+              <p className="text-sm text-on-surface-variant">Gestão profissional para grandes áreas produtivas.</p>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -297,29 +535,32 @@ const ProblemSection = () => {
           <div className="space-y-8">
             <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">O PROBLEMA</span>
             <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
-              A maioria dos produtores ainda toma decisões no escuro.
+              Você planta certo, faz tudo certo — e ainda assim sobra menos do que deveria.
             </h2>
             <div className="space-y-6 text-on-surface-variant text-lg leading-relaxed">
               <p>
-                Cada safra tem dezenas de escolhas difíceis: qual adubo usar, qual semente plantar, quando e quanto aplicar. Sem dados do seu solo, essas escolhas viram chute — e chute custa caro.
+                Existe um paradoxo comum no agro: quanto mais experiente o produtor, mais ele acredita que já sabe o que o seu solo precisa. E é exatamente aí que mora a perda.
+              </p>
+              <p>
+                É como o nutricionista: a maioria das pessoas acha que sabe o que deve comer. E por isso, não vai ao especialista. Só que sem um diagnóstico real, você acaba tomando decisões baseadas no padrão da fazenda — não nos dados do seu solo.
               </p>
               <p className="font-bold text-primary">
-                Taxas de juros altas, insumos caros e clima instável não perdoam quem não tem um plano baseado em realidade. A ConnectFARM existe para mudar isso.
+                O resultado? Adubo no lugar errado, cultivar inadequado pro talhão, correção insuficiente. Tudo isso vira custo invisível que aparece só no final da safra.
               </p>
             </div>
           </div>
           <div className="relative">
             <div className="aspect-square rounded-3xl overflow-hidden shadow-2xl">
               <img 
-                src="https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?q=80&w=1000&auto=format&fit=crop" 
-                alt="Farmer analyzing crops" 
+                src="/amostras.png" 
+                alt="Amostras de solo no campo - ConnectFarm" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
             </div>
             <div className="absolute -bottom-10 -left-10 bg-tertiary p-8 rounded-2xl shadow-xl text-white max-w-xs hidden md:block">
-              <p className="text-3xl font-headline font-bold mb-2">500+</p>
-              <p className="text-sm font-label uppercase tracking-wider opacity-80">Novos produtos lançados por ano no mercado agrícola</p>
+              <p className="text-xl font-headline font-bold mb-2">Economia Real</p>
+              <p className="text-sm font-label uppercase tracking-wider opacity-80">Produtores ConnectFARM já economizaram até R$ 450,00 por hectare só ajustando a adubação.</p>
             </div>
           </div>
         </div>
@@ -335,32 +576,32 @@ const WhyItMattersSection = () => {
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-8">
-            <span className="font-label text-xs uppercase tracking-[0.4em] text-tertiary-fixed font-bold">POR QUE ISSO IMPORTA</span>
+            <span className="font-label text-xs uppercase tracking-[0.4em] text-tertiary-fixed font-bold">O DIFERENCIAL</span>
             <h2 className="font-headline text-4xl md:text-6xl font-bold tracking-tight leading-tight">
-              Uma escolha errada no solo pode custar centenas de reais por hectare.
+              Em um mercado onde todo mundo quer te vender algo, a gente entrega resultado mensurável.
             </h2>
             <p className="text-white/80 text-xl leading-relaxed">
-              Produtores que usam o padrão da fazenda sem diagnóstico muitas vezes gastam mais do que precisam — ou gastam no lugar errado. Com o diagnóstico ConnectFARM, um produtor economizou <span className="text-tertiary-fixed font-bold">R$ 259 por hectare</span> só trocando o adubo com base nos dados do solo.
+              Você já sabe: todo dia tem alguém ligando, mandando mensagem, tentando vender alguma coisa para a sua fazenda. A oferta de produtos e serviços no agro é enorme — e a maioria não entrega o que promete.
             </p>
             <div className="bg-white/10 p-8 rounded-2xl border border-white/20">
               <p className="text-2xl md:text-3xl font-headline font-bold text-tertiary-fixed italic">
-                "Independente de quais sejam os seus cultivos, o clima ou as práticas de manejo, todos os seus dados juntos já garantiram uma economia de até R$ 450,00 por hectare para um produtor ConnectFARM."
+                "A ConnectFARM não vende promessa. Vende diagnóstico, plano e acompanhamento. O resultado aparece no custo por hectare, na produtividade por talhão e no lucro líquido da safra."
               </p>
             </div>
           </div>
           <div className="space-y-12">
             <div className="p-10 bg-white/5 rounded-3xl border border-white/10 space-y-6">
-              <p className="text-5xl md:text-7xl font-headline font-bold text-tertiary-fixed">R$ 259</p>
-              <p className="text-xl font-label uppercase tracking-widest text-white/60">Economia real por hectare</p>
+              <p className="text-5xl md:text-7xl font-headline font-bold text-tertiary-fixed">R$ 450</p>
+              <p className="text-xl font-label uppercase tracking-widest text-white/60">Economia máxima por hectare</p>
               <div className="pt-6 border-t border-white/10">
-                <p className="text-2xl font-headline font-bold">Agora pensa: quantos hectares você tem?</p>
+                <p className="text-2xl font-headline font-bold">Ajuste de adubação baseado em diagnóstico real.</p>
               </div>
             </div>
             <div className="flex items-center gap-6 p-6 bg-tertiary/20 rounded-2xl border border-tertiary/30">
               <div className="h-12 w-12 rounded-full bg-tertiary flex items-center justify-center shrink-0">
                 <CheckCircle2 size={24} />
               </div>
-              <p className="text-lg font-medium">Decisões baseadas em realidade, não em palpites.</p>
+              <p className="text-lg font-medium">Decisões baseadas em número, não em padrão genérico.</p>
             </div>
           </div>
         </div>
@@ -372,33 +613,33 @@ const WhyItMattersSection = () => {
 const DiagnosisIncludesSection = () => {
   const items = [
     {
-      title: 'Mapeamento dos ambientes da fazenda',
-      description: 'Dividimos sua propriedade em zonas de acordo com o potencial de cada área. Assim você sabe onde pode produzir mais e onde precisa de correção primeiro.',
+      title: 'Mapeamento dos ambientes de produção',
+      description: 'Dividimos sua propriedade em zonas de potencial — alta, média e baixa — para que você saiba onde investir mais e onde corrigir primeiro. Chega de tratar a fazenda inteira do mesmo jeito.',
       icon: <MapIcon size={24} />
     },
     {
-      title: 'Análise completa do solo',
-      description: 'Coletamos amostras em duas profundidades e analisamos mais de 20 elementos — como pH, matéria orgânica, fósforo, potássio, cálcio, magnésio e muito mais.',
+      title: 'Análise completa do solo em duas profundidades',
+      description: 'pH, matéria orgânica, fósforo, potássio, cálcio, magnésio, micronutrientes e muito mais. Você vê o que está limitando a produtividade em cada talhão.',
       icon: <Droplets size={24} />
     },
     {
       title: 'Mapa nutricional por talhão',
-      description: 'Você vê no mapa quais áreas estão bem e quais estão com deficiência. Fácil de entender, fácil de usar na hora de tomar decisão.',
+      description: 'Visual, objetivo e fácil de usar na hora de tomar decisão. Você e sua equipe entendem de primeira.',
       icon: <BarChart3 size={24} />
     },
     {
       title: 'Recomendação de correção do solo',
-      description: 'Indicamos o que precisa ser aplicado para corrigir o perfil do solo — calcário, gesso, micronutrientes — com base nos dados reais da sua terra.',
+      description: 'Calcário, gesso, micronutrientes — indicamos o que precisa ser aplicado, com base nos dados reais, não no "padrão da região".',
       icon: <FileCheck size={24} />
     },
     {
       title: 'Plano de adubação com justificativa',
-      description: 'Não entregamos só o número. Explicamos o porquê de cada recomendação, para que você entenda o que está investindo e o retorno que pode esperar.',
+      description: 'Cada recomendação vem explicada. Você sabe o que está investindo e qual retorno esperar. Decisão baseada em número.',
       icon: <ClipboardList size={24} />
     },
     {
       title: 'Planos de cobertura e rotação de culturas',
-      description: 'Para quem pensa no longo prazo: orientamos sobre o que plantar entre as safras para recuperar e manter o solo produtivo por mais tempo.',
+      description: 'Para quem pensa na rentabilidade de longo prazo: orientamos o que plantar entre safras para manter e recuperar o solo produtivo.',
       icon: <RefreshCw size={24} />
     }
   ];
@@ -408,7 +649,7 @@ const DiagnosisIncludesSection = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 space-y-6">
           <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">O QUE O DIAGNÓSTICO INCLUI</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Tudo o que você precisa saber sobre o seu solo — sem complicação.</h2>
+          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Um raio-x completo, talhão por talhão, da produtividade da sua fazenda.</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -435,26 +676,26 @@ const HowItWorksSection = () => {
   const steps = [
     {
       id: 'Passo 1',
-      title: 'Nossa equipe vai até você',
-      description: 'Um agrônomo da ConnectFARM visita sua fazenda, conversa com você sobre seus objetivos e faz a coleta de solo nos seus talhões — em duas profundidades (0–20 cm e 20–40 cm) — para entender o que está acontecendo em cada parte da sua terra.',
+      title: 'A gente vai até você',
+      description: 'Um agrônomo ConnectFARM visita sua fazenda, entende seus objetivos e faz a coleta de solo nos seus talhões em duas profundidades (0–20 cm e 20–40 cm). A coleta é georreferenciada e segue um protocolo técnico rigoroso.',
       icon: <MapPin size={32} />
     },
     {
       id: 'Passo 2',
-      title: 'Analisamos tudo',
-      description: 'As amostras vão para laboratório e os resultados entram na nossa plataforma. Nossa tecnologia processa os dados e gera um diagnóstico completo: o que falta, o que está em excesso, e o que precisa ser corrigido em cada talhão.',
+      title: 'Análise e diagnóstico completo',
+      description: 'As amostras são processadas em laboratório e os resultados entram na nossa plataforma. Nossa tecnologia analisa mais de 72 variáveis — solo, clima, histórico, genética — e gera um diagnóstico detalhado de cada área da sua propriedade.',
       icon: <Search size={32} />
     },
     {
       id: 'Passo 3',
       title: 'Você recebe um plano claro',
-      description: 'Sem relatório complicado. Você recebe um mapa visual da sua fazenda e uma recomendação prática: qual adubo usar, em qual quantidade, em qual área. Tudo explicado de forma simples.',
+      description: 'Nada de relatório complicado que ninguém lê. Você recebe um mapa visual da sua fazenda com recomendações objetivas: qual adubo, em qual quantidade, em qual área, e por quê. O racional está junto com a recomendação.',
       icon: <FileCheck size={32} />
     },
     {
       id: 'Passo 4',
-      title: 'A gente fica do seu lado',
-      description: 'Nossos agrônomos acompanham você durante toda a safra. Se surgir uma dúvida ou precisar de ajuste, a ConnectFARM está disponível.',
+      title: 'Acompanhamento durante toda a safra',
+      description: 'Nossos agrônomos ficam com você do plantio à colheita. Monitoramento em tempo real, alertas de anomalias e suporte direto — para que as recomendações sejam aplicadas e os resultados, medidos.',
       icon: <Headset size={32} />
     }
   ];
@@ -465,7 +706,7 @@ const HowItWorksSection = () => {
         <div className="text-center mb-20 space-y-6">
           <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">COMO FUNCIONA</span>
           <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Coleta de Solo e Diagnóstico Agronômico</h2>
-          <p className="text-on-surface-variant max-w-2xl mx-auto">Esse é o coração do nosso trabalho. Antes de qualquer recomendação, a gente vai até a sua propriedade, entende o seu terreno e coleta amostras do solo com precisão. Nada de palpite — só dado real.</p>
+          <p className="text-on-surface-variant max-w-2xl mx-auto">Antes de qualquer recomendação, a gente vai até a sua propriedade. Coletamos, analisamos e entregamos um diagnóstico preciso — o que seu solo tem, o que falta, e o que precisa mudar em cada área. Sem palpite. Sem padrão genérico. Dados reais da sua terra.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 relative">
@@ -490,11 +731,12 @@ const HowItWorksSection = () => {
 
 const PlatformSection = () => {
   const features = [
-    'Mapa completo da fertilidade da sua fazenda',
-    'Histórico de análises e recomendações por talhão',
-    'Comparativo entre áreas de alta, média e baixa produtividade',
-    'Relatórios simples, gerados com apoio de inteligência artificial',
-    'Arquivos prontos para programar seu maquinário (taxa variável)'
+    'Mapa de fertilidade da fazenda por talhão',
+    'Histórico completo de análises e recomendações',
+    'Comparativo de desempenho entre áreas',
+    'Índice de Gestão Agronômica (IGA) — um score exclusivo ConnectFARM',
+    'Relatórios simplificados assistidos por inteligência artificial',
+    'Arquivos de taxa variável prontos para o seu maquinário, com 1 clique'
   ];
 
   return (
@@ -511,6 +753,7 @@ const PlatformSection = () => {
                   </div>
                   <h4 className="font-headline font-bold text-2xl text-primary">Plataforma CFARM</h4>
                 </div>
+                <p className="text-sm font-bold text-primary">O que você acessa:</p>
                 <ul className="space-y-4">
                   {features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3 text-on-surface-variant">
@@ -521,7 +764,7 @@ const PlatformSection = () => {
                 </ul>
                 <div className="pt-6 border-t border-outline-variant/20">
                   <p className="text-sm font-medium text-primary">
-                    Compatível com as principais marcas de máquinas do mercado — sem complicação técnica.
+                    Compatível com as principais marcas de equipamentos do mercado.
                   </p>
                 </div>
               </div>
@@ -531,10 +774,10 @@ const PlatformSection = () => {
           <div className="space-y-8 order-1 lg:order-2">
             <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">A PLATAFORMA CFARM</span>
             <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
-              Seus dados da fazenda, sempre na palma da mão.
+              Todos os dados da sua fazenda, organizados e acessíveis.
             </h2>
             <p className="text-on-surface-variant text-xl leading-relaxed">
-              Depois do diagnóstico, tudo fica registrado na plataforma CFARM — uma ferramenta digital onde você e seu agrônomo acessam o histórico da sua propriedade, acompanham os resultados e planejam a próxima safra com segurança.
+              Depois do diagnóstico, tudo fica registrado na plataforma CFARM. Você e seu agrônomo acessam o histórico da propriedade, acompanham os indicadores e planejam a próxima safra com segurança — de qualquer lugar.
             </p>
             <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-outline-variant/10 shadow-sm">
               <Brain className="text-tertiary" size={32} />
@@ -550,28 +793,28 @@ const PlatformSection = () => {
 const OtherServicesSection = () => {
   const services = [
     {
-      title: 'Escolha de sementes e cultivares',
-      description: 'Saiba quais variedades tiveram melhor resultado na sua região, por data de plantio. Pare de testar na raça — use dados reais para escolher a semente certa para cada talhão.',
+      title: 'Escolha assertiva de cultivares',
+      description: 'Dados reais de cultivares testados na sua região, por data de plantio. Pare de testar na raça — escolha a semente certa com base em resultado comprovado. Produtores ConnectFARM ganharam +5 sacas/ha só com essa mudança.',
       icon: <Dna size={24} />
     },
     {
-      title: 'Controle de pragas e doenças',
-      description: 'Indicamos o defensivo certo, na dose certa e na hora certa. Sem desperdício, sem risco de resistência.',
+      title: 'Gestão fitossanitária inteligente',
+      description: 'Defensivo certo, dose certa, momento certo. Sem desperdício, sem resistência, sem custo desnecessário.',
       icon: <ShieldCheck size={24} />
     },
     {
       title: 'Planejamento financeiro da safra',
-      description: 'Estimativa de custo por talhão, com foco em reduzir desperdícios e aumentar o retorno do investimento.',
+      description: 'Estimativa de custo por talhão, com foco em reduzir desperdícios e maximizar o retorno do investimento. Para o produtor que quer saber, antes de plantar, se o número fecha.',
       icon: <DollarSign size={24} />
     },
     {
-      title: 'Monitoramento durante a safra',
-      description: 'Alertas em tempo real sobre o desenvolvimento da lavoura. Se algo sair do esperado, você sabe na hora — não depois da perda.',
+      title: 'Monitoramento em tempo real',
+      description: 'Alertas sobre o desenvolvimento da lavoura via NDVI e dados pluviométricos. Você age antes do problema virar prejuízo.',
       icon: <Eye size={24} />
     },
     {
       title: 'Análise pós-safra',
-      description: 'Ao final de cada ciclo, analisamos o desempenho da sua fazenda talhão a talhão e identificamos o que melhorar na próxima safra. Cada safra deixa a próxima mais inteligente.',
+      description: 'Ao final de cada ciclo, analisamos o desempenho talhão a talhão. O que funcionou, o que pode melhorar, e o que fazer diferente na próxima safra. Cada safra deixa a próxima mais inteligente.',
       icon: <RefreshCw size={24} />
     }
   ];
@@ -581,7 +824,7 @@ const OtherServicesSection = () => {
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 space-y-6">
           <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">OUTROS SERVIÇOS</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Além do diagnóstico de solo, a ConnectFARM também te ajuda com:</h2>
+          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Para quem quer ir além do diagnóstico.</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
@@ -617,9 +860,9 @@ const ResultsSection = () => {
     <section id="cases" className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 space-y-6">
-          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">RESULTADOS REAIS</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Números de quem já usa a ConnectFARM.</h2>
-          <p className="text-on-surface-variant max-w-2xl mx-auto">Nosso sistema é baseado em mais de 400 mil análises de solo e 10 anos de pesquisa no campo.</p>
+          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">POR QUE A CONNECTFARM</span>
+          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Números reais que comprovam o resultado.</h2>
+          <p className="text-on-surface-variant max-w-2xl mx-auto">Sistema baseado em mais de 400 mil análises de solo e 10 anos de pesquisa em campo.</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
@@ -649,13 +892,13 @@ const AboutSection = () => {
           <div className="space-y-8">
             <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">QUEM ESTÁ POR TRÁS</span>
             <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
-              Uma equipe de campo e de tecnologia, trabalhando pela sua fazenda.
+              Uma equipe que entende de campo e de tecnologia.
             </h2>
             <p className="text-on-surface-variant text-xl leading-relaxed">
-              A ConnectFARM tem agrônomos, técnicos, desenvolvedores e biólogos trabalhando juntos para entregar o melhor diagnóstico e o melhor acompanhamento para o produtor rural brasileiro.
+              A ConnectFARM tem agrônomos, técnicos, desenvolvedores e biólogos trabalhando juntos — porque a gente acredita que dado sem agronomia é planilha, e agronomia sem dado é opinião.
             </p>
             <p className="text-on-surface-variant text-lg">
-              Estamos em mais de 8 estados, com presença de campo — porque a gente acredita que tecnologia boa é aquela que começa com os pés na terra.
+              Estamos em mais de 8 estados brasileiros, com presença física em campo.
             </p>
             
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8">
@@ -719,7 +962,7 @@ const Footer = () => {
           <div className="space-y-6">
             <h4 className="font-label text-xs uppercase tracking-widest font-bold text-tertiary-fixed">CONTATO</h4>
             <ul className="space-y-4 text-surface/80">
-              <li className="flex items-center gap-2"><Phone size={16} className="text-tertiary-fixed" /> (51) 3630-0682</li>
+              <li className="flex items-center gap-2"><Phone size={16} className="text-tertiary-fixed" /> {WHATSAPP_DISPLAY}</li>
               <li className="flex items-center gap-2"><Globe size={16} className="text-tertiary-fixed" /> connectfarm.com.br</li>
               <li><a href="https://instagram.com/Connectfarm_" target="_blank" rel="noopener noreferrer" className="hover:text-tertiary-fixed transition-colors">Instagram: @Connectfarm_</a></li>
               <li><a href="https://facebook.com/Connectfarmagr" target="_blank" rel="noopener noreferrer" className="hover:text-tertiary-fixed transition-colors">Facebook: @Connectfarmagr</a></li>
@@ -742,52 +985,71 @@ const Footer = () => {
 // --- Main App ---
 
 export default function App() {
+  const [activePage, setActivePage] = useState('home');
+
   return (
     <div className="min-h-screen selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
-      <Navbar />
+      <Navbar activePage={activePage} setActivePage={setActivePage} />
       <main>
-        <Hero />
-        <ProblemSection />
-        <HowItWorksSection />
-        <DiagnosisIncludesSection />
-        <WhyItMattersSection />
-        <PlatformSection />
-        <OtherServicesSection />
-        <ResultsSection />
-        <AboutSection />
-        
-        {/* Final CTA Section */}
-        <section id="contato" className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-tertiary to-transparent" />
-          <div className="max-w-4xl mx-auto space-y-10 relative z-10">
-            <h2 className="font-headline text-4xl md:text-7xl text-primary font-bold tracking-tight">
-              Vamos descobrir o que o seu solo tem a dizer?
-            </h2>
-            <p className="text-on-surface-variant text-xl md:text-2xl leading-relaxed">
-              O primeiro passo é simples: fale com um agrônomo ConnectFARM. A gente explica como funciona, sem compromisso.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-6 justify-center pt-6">
-              <a 
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="bg-tertiary text-white px-10 py-5 rounded-2xl font-body font-bold text-xl hover:scale-105 transition-transform shadow-xl flex items-center justify-center gap-3"
-              >
-                Quero um diagnóstico da minha fazenda
-                <ArrowRight size={24} />
-              </a>
-              <a 
-                href={WHATSAPP_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="glass-panel text-primary border border-primary/20 px-10 py-5 rounded-2xl font-body font-bold text-xl flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors"
-              >
-                <WhatsAppIcon size={24} />
-                Falar pelo WhatsApp agora
-              </a>
-            </div>
+        {activePage === 'home' ? (
+          <>
+            <Hero />
+            <ForWhomSection />
+            <ProblemSection />
+            <HowItWorksSection />
+            <DiagnosisIncludesSection />
+            <WhyItMattersSection />
+            <PlatformSection />
+            <OtherServicesSection />
+            <ResultsSection />
+            <AboutSection />
+            
+            {/* Final CTA Section */}
+            <section id="contato" className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-tertiary to-transparent" />
+              <div className="max-w-4xl mx-auto space-y-10 relative z-10">
+                <h2 className="font-headline text-4xl md:text-7xl text-primary font-bold tracking-tight">
+                  Você sabe o quanto custa não ter um diagnóstico?
+                </h2>
+                <p className="text-on-surface-variant text-xl md:text-2xl leading-relaxed">
+                  O primeiro passo é simples: fale com um agrônomo ConnectFARM. A gente mostra, com dados, onde está o potencial da sua fazenda — e o que fazer para chegar lá.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-6 justify-center pt-6">
+                  <a 
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-tertiary text-white px-10 py-5 rounded-2xl font-body font-bold text-xl hover:scale-105 transition-transform shadow-xl flex items-center justify-center gap-3"
+                  >
+                    Quero um diagnóstico da minha fazenda
+                    <ArrowRight size={24} />
+                  </a>
+                  <a 
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="glass-panel text-primary border border-primary/20 px-10 py-5 rounded-2xl font-body font-bold text-xl flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors"
+                  >
+                    <WhatsAppIcon size={24} />
+                    Falar pelo WhatsApp agora
+                  </a>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : activePage === 'integridade' ? (
+          <WhistleblowingChannel />
+        ) : (
+          <div className="py-40 text-center">
+            <h2 className="text-3xl font-bold text-[#064A17]">Página em desenvolvimento</h2>
+            <button 
+              onClick={() => setActivePage('home')}
+              className="mt-6 text-[#868C14] font-bold hover:underline"
+            >
+              Voltar para Home
+            </button>
           </div>
-        </section>
+        )}
       </main>
       <Footer />
       <FloatingWhatsApp />
