@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   ArrowRight,
+  ArrowLeft,
   CheckCircle2,
   AlertTriangle,
   Cpu,
@@ -31,14 +32,94 @@ import {
   FileCheck,
   Headset,
   Brain,
-  Activity
+  Activity,
+  Plus,
+  Trash2,
+  LogOut,
+  LayoutDashboard,
+  FileText,
+  Image as ImageIcon
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import Markdown from 'react-markdown';
 import { cn } from '@/src/lib/utils';
+import { db, auth } from './firebase';
+import { 
+  collection, 
+  query, 
+  orderBy, 
+  where,
+  onSnapshot, 
+  addDoc, 
+  updateDoc,
+  deleteDoc,
+  getDocFromServer,
+  doc
+} from 'firebase/firestore';
+import { 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  onAuthStateChanged,
+  signOut,
+  User as FirebaseUser
+} from 'firebase/auth';
+import { GoogleGenAI, Type } from "@google/genai";
 
 const WHATSAPP_NUMBER = "555136300682";
 const WHATSAPP_DISPLAY = "+55 51 3630-0682";
 const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
+
+interface BlogPost {
+  id: string;
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  date: string;
+  image: string;
+  author: string;
+  authorId: string;
+  status: 'draft' | 'published';
+}
+
+const MOCK_POSTS: BlogPost[] = [
+  {
+    id: '1',
+    title: 'O impacto da adubação de precisão na produtividade da soja',
+    excerpt: 'Como o ajuste fino dos nutrientes pode elevar o patamar de colheita sem aumentar o custo por hectare.',
+    content: 'Conteúdo completo do post 1...',
+    category: 'Tecnologia',
+    date: '10 Abr 2026',
+    image: 'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?q=80&w=800&auto=format&fit=crop',
+    author: 'Rodrigo ConnectFARM',
+    authorId: 'admin',
+    status: 'published'
+  },
+  {
+    id: '2',
+    title: 'Gestão de dados: o novo adubo do produtor moderno',
+    excerpt: 'Por que coletar dados é apenas o começo, e como a inteligência da ConnectFARM transforma números em lucro.',
+    content: 'Conteúdo completo do post 2...',
+    category: 'Gestão',
+    date: '08 Abr 2026',
+    image: 'https://images.unsplash.com/photo-1586771107445-d3ca888129ff?q=80&w=600&auto=format&fit=crop',
+    author: 'Equipe Técnica',
+    authorId: 'admin',
+    status: 'published'
+  },
+  {
+    id: '3',
+    title: 'Previsão de safra e o uso de satélites no monitoramento',
+    excerpt: 'Entenda como a tecnologia espacial ajuda a antecipar problemas e garantir a saúde do talhão.',
+    content: 'Conteúdo completo do post 3...',
+    category: 'Inovação',
+    date: '05 Abr 2026',
+    image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop',
+    author: 'Eng. Agrônomo',
+    authorId: 'admin',
+    status: 'published'
+  }
+];
 
 // --- Components ---
 
@@ -88,17 +169,82 @@ const Logo = ({ className, variant = 'default' }: { className?: string, variant?
 
 const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePage: (page: string) => void }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async () => {
+    if (isLoggingIn) return;
+    setIsLoggingIn(true);
+    
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error: any) {
+      if (error.code === 'auth/popup-closed-by-user') {
+        console.log("Login cancelado pelo usuário.");
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        console.log("Requisição de popup cancelada.");
+      } else {
+        console.error("Erro ao fazer login:", error);
+        alert("Erro ao fazer login. Por favor, tente novamente.");
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    }
+  };
+
+  const isAdmin = user && (
+    user.email === "alessandro.flores16@gmail.com" || 
+    user.email === "rodrigo@connectfarm.com.br"
+  );
 
   const navLinks = [
     { name: 'HOME', id: 'home' },
-    { name: 'QUEM SOMOS', id: 'quem-somos' },
-    { name: 'CASES', id: 'cases' },
+    { name: 'BLOG', id: 'blog' },
     { name: 'CONTATO', id: 'contato' },
     { name: 'PROGRAMA DE INTEGRIDADE', id: 'integridade' },
   ];
 
+  const handleNavClick = (id: string) => {
+    if (id === 'contato') {
+      if (activePage !== 'home') {
+        setActivePage('home');
+        // Wait for page to switch before scrolling
+        setTimeout(() => {
+          const element = document.getElementById('contato');
+          element?.scrollIntoView({ behavior: 'smooth' });
+        }, 100);
+      } else {
+        const element = document.getElementById('contato');
+        element?.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      setActivePage(id);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    setIsOpen(false);
+  };
+
   return (
-    <nav className="sticky top-0 z-50 bg-white border-b border-outline-variant/10">
+    <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-outline-variant/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-24">
           <div className="flex items-center">
@@ -111,7 +257,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
             {navLinks.map((link) => (
               <button
                 key={link.id}
-                onClick={() => setActivePage(link.id)}
+                onClick={() => handleNavClick(link.id)}
                 className={cn(
                   "text-xs font-bold tracking-wider transition-colors hover:text-[#868C14]",
                   activePage === link.id ? "text-[#868C14]" : "text-[#064A17]"
@@ -131,9 +277,42 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                 <span className="text-[10px] text-gray-400">▼</span>
               </div>
               
-              <button className="bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#e5b521] transition-all shadow-sm">
-                Acesse sua Conta
-              </button>
+              {user ? (
+                <div className="flex items-center gap-6">
+                  <button 
+                    onClick={() => setActivePage('admin')}
+                    className="bg-tertiary/10 text-tertiary px-4 py-2 rounded-xl font-bold text-xs hover:bg-tertiary hover:text-white transition-all border border-tertiary/20 flex items-center gap-2"
+                  >
+                    <LayoutDashboard size={16} />
+                    PAINEL BLOG (VALIDAR)
+                  </button>
+                  <div className="flex items-center gap-4 pl-4 border-l border-outline-variant/20">
+                    <div className="flex flex-col items-end">
+                      <span className="text-xs font-bold text-primary">{user.displayName}</span>
+                      <button onClick={handleLogout} className="text-[10px] text-tertiary hover:underline">Sair</button>
+                    </div>
+                    <img src={user.photoURL || ''} alt="Avatar" className="w-8 h-8 rounded-full border border-primary/10" />
+                  </div>
+                </div>
+              ) : (
+                <button 
+                  onClick={handleLogin}
+                  disabled={isLoggingIn}
+                  className={cn(
+                    "bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#e5b521] transition-all shadow-sm flex items-center gap-2",
+                    isLoggingIn && "opacity-70 cursor-not-allowed"
+                  )}
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-[#064A17]/30 border-t-[#064A17] rounded-full animate-spin" />
+                      Acessando...
+                    </>
+                  ) : (
+                    "Acesse sua Conta"
+                  )}
+                </button>
+              )}
             </div>
           </div>
 
@@ -155,11 +334,11 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
           {navLinks.map((link) => (
             <button
               key={link.id}
-              onClick={() => {
-                setActivePage(link.id);
-                setIsOpen(false);
-              }}
-              className="block w-full text-left text-xs font-bold tracking-wider text-[#064A17] py-2"
+              onClick={() => handleNavClick(link.id)}
+              className={cn(
+                "block w-full text-left text-xs font-bold tracking-wider py-2 transition-colors",
+                activePage === link.id ? "text-[#868C14]" : "text-[#064A17]"
+              )}
             >
               {link.name}
             </button>
@@ -243,16 +422,16 @@ const WhistleblowingChannel = () => {
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-16 items-start">
         <div className="space-y-8">
           <div className="space-y-2">
-            <h1 className="text-5xl lg:text-6xl font-bold text-[#F7C424] leading-tight">
+            <h1 className="font-headline text-5xl lg:text-6xl font-bold text-[#F7C424] leading-tight">
               Canal de
             </h1>
-            <h2 className="text-5xl lg:text-6xl font-bold text-[#064A17] leading-tight">
+            <h2 className="font-headline text-5xl lg:text-6xl font-bold text-[#064A17] leading-tight">
               Denúncias
             </h2>
           </div>
           
-          <p className="text-[#064A17] text-lg leading-relaxed max-w-xl">
-            A ConnectFarm visa estar inserida no Cadastro Agroíntegro do Ministério da Agricultura e MapaBrasil. Portanto, nos comprometemos com a implementação de práticas e condutas de integridade, ética e transparência. Por isso, abrimos este canal para que qualquer pessoa nos relate e denuncie qualquer atividade relacionada a nós que ameace ferir esse comprometimento. Utilize o formulário seguro abaixo para fazer sua denúncia. Ela é muito importante para nós e pode ser feita de maneira anônima.
+          <p className="font-body text-[#064A17] text-lg leading-relaxed max-w-xl">
+            A ConnectFARM visa estar inserida no Cadastro Agroíntegro do Ministério da Agricultura e MapaBrasil. Portanto, nos comprometemos com a implementação de práticas e condutas de integridade, ética e transparência. Por isso, abrimos este canal para que qualquer pessoa nos relate e denuncie qualquer atividade relacionada a nós que ameace ferir esse comprometimento. Utilize o formulário seguro abaixo para fazer sua denúncia. Ela é muito importante para nós e pode ser feita de maneira anônima.
           </p>
         </div>
 
@@ -293,37 +472,37 @@ const WhistleblowingChannel = () => {
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">Nome</label>
+              <label className="font-label text-sm font-medium text-gray-500">Nome</label>
               <input 
                 type="text" 
                 placeholder="Digite seu nome aqui"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
+                className="font-body w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
                 disabled={isAnonymous}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">Telefone</label>
+              <label className="font-label text-sm font-medium text-gray-500">Telefone</label>
               <input 
                 type="tel" 
                 placeholder="+55 51 3630-0682"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
+                className="font-body w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
                 disabled={isAnonymous}
               />
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-500">Mensagem</label>
+              <label className="font-label text-sm font-medium text-gray-500">Mensagem</label>
               <textarea 
                 placeholder="Digite sua mensagem aqui"
                 rows={6}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
-                className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all resize-none"
+                className="font-body w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all resize-none"
                 required
               />
             </div>
@@ -553,7 +732,7 @@ const ProblemSection = () => {
             <div className="aspect-square rounded-3xl overflow-hidden shadow-2xl">
               <img 
                 src="/amostras.png" 
-                alt="Amostras de solo no campo - ConnectFarm" 
+                alt="Amostras de solo no campo - ConnectFARM" 
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
@@ -592,9 +771,9 @@ const WhyItMattersSection = () => {
           <div className="space-y-12">
             <div className="p-10 bg-white/5 rounded-3xl border border-white/10 space-y-6">
               <p className="text-5xl md:text-7xl font-headline font-bold text-tertiary-fixed">R$ 450</p>
-              <p className="text-xl font-label uppercase tracking-widest text-white/60">Economia máxima por hectare</p>
+              <p className="text-xl font-label uppercase tracking-widest text-white/60">Economia real por hectare</p>
               <div className="pt-6 border-t border-white/10">
-                <p className="text-2xl font-headline font-bold">Ajuste de adubação baseado em diagnóstico real.</p>
+                <p className="text-2xl font-headline font-bold">Resultado obtido em campo através do ajuste preciso da adubação.</p>
               </div>
             </div>
             <div className="flex items-center gap-6 p-6 bg-tertiary/20 rounded-2xl border border-tertiary/30">
@@ -900,28 +1079,819 @@ const AboutSection = () => {
             <p className="text-on-surface-variant text-lg">
               Estamos em mais de 8 estados brasileiros, com presença física em campo.
             </p>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pt-8">
-              {[
-                { label: 'Agrônomos', value: '10' },
-                { label: 'Desenvolvedores', value: '5' },
-                { label: 'Técnicos Agrícolas', value: '4' },
-                { label: 'Biólogo', value: '1' },
-              ].map((item, i) => (
-                <div key={i} className="text-center p-6 bg-surface-container-low rounded-2xl border border-outline-variant/10">
-                  <p className="text-3xl font-headline font-bold text-primary">{item.value}</p>
-                  <p className="text-xs font-label uppercase tracking-widest text-on-surface-variant mt-2">{item.label}</p>
-                </div>
-              ))}
-            </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <img src="https://images.unsplash.com/photo-1595841696677-6489ff3f8cd1?q=80&w=600&auto=format&fit=crop" alt="Field work" className="rounded-2xl h-64 w-full object-cover mt-12" referrerPolicy="no-referrer" />
+            <img src="/10.04.2026_17.29.26_REC.png" alt="Atendimento RTA ConnectFARM" className="rounded-2xl h-64 w-full object-cover mt-12" referrerPolicy="no-referrer" />
             <img src="https://images.unsplash.com/photo-1586771107445-d3ca888129ff?q=80&w=600&auto=format&fit=crop" alt="Lab work" className="rounded-2xl h-64 w-full object-cover" referrerPolicy="no-referrer" />
           </div>
         </div>
       </div>
     </section>
+  );
+};
+
+const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) => {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeCategory, setActiveCategory] = useState('Todos');
+
+  useEffect(() => {
+    if (!db) {
+      console.error("Firestore db instance is not initialized.");
+      setLoading(false);
+      return;
+    }
+    const q = query(
+      collection(db, 'posts'), 
+      where('status', '==', 'published'),
+      orderBy('date', 'desc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const postsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as BlogPost[];
+      setPosts(postsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("Erro ao carregar posts:", error);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const categories = ['Todos', ...new Set(posts.map(p => p.category))];
+  const filteredPosts = activeCategory === 'Todos' 
+    ? posts 
+    : posts.filter(p => p.category === activeCategory);
+
+  const featuredPost = posts[0];
+  const otherPosts = filteredPosts.filter(p => p.id !== featuredPost?.id);
+
+  const calculateReadingTime = (text: string) => {
+    const wordsPerMinute = 200;
+    const words = text.split(/\s+/).length;
+    return Math.ceil(words / wordsPerMinute);
+  };
+
+  if (loading) {
+    return (
+      <div className="pt-40 pb-20 text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-4 text-on-surface-variant font-sans">Carregando o universo ConnectFARM...</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white min-h-screen">
+      {/* Editorial Header */}
+      <header className="pt-40 pb-20 px-4 sm:px-6 lg:px-8 border-b border-primary/5">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8">
+            <div className="space-y-6 max-w-3xl">
+              <div className="font-label flex items-center gap-3 text-tertiary font-bold tracking-[0.2em] text-xs uppercase">
+                <span className="w-8 h-[1px] bg-tertiary" />
+                Editorial ConnectFARM
+              </div>
+              <h1 className="text-6xl md:text-9xl font-headline font-bold text-primary leading-[0.85] tracking-tighter">
+                O Futuro do <br /> <span className="text-tertiary italic font-serif font-medium">Campo</span> Hoje.
+              </h1>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {categories.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={cn(
+                    "px-6 py-2 rounded-full text-sm font-bold transition-all border",
+                    activeCategory === cat 
+                      ? "bg-primary text-white border-primary" 
+                      : "bg-transparent text-primary border-primary/10 hover:border-primary/30"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        {posts.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-on-surface-variant text-xl font-serif italic">Nenhum artigo publicado ainda.</p>
+          </div>
+        ) : (
+          <div className="space-y-32">
+            {/* Featured Post - Recipe 2 Style */}
+            {activeCategory === 'Todos' && featuredPost && (
+              <section 
+                className="group cursor-pointer relative"
+                onClick={() => onPostClick(featuredPost)}
+              >
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                  <div className="lg:col-span-7 overflow-hidden rounded-[2rem] aspect-[16/10]">
+                    <motion.img 
+                      initial={{ scale: 1.1 }}
+                      whileInView={{ scale: 1 }}
+                      transition={{ duration: 1.5 }}
+                      src={featuredPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1200&auto=format&fit=crop'} 
+                      alt={featuredPost.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div className="lg:col-span-5 space-y-8">
+                    <div className="space-y-4">
+                      <span className="font-label text-tertiary font-bold tracking-widest text-xs uppercase">{featuredPost.category}</span>
+                      <h2 className="text-4xl md:text-6xl font-headline font-bold text-primary leading-tight group-hover:text-tertiary transition-colors">
+                        {featuredPost.title}
+                      </h2>
+                      <p className="text-xl text-on-surface-variant leading-relaxed font-serif italic">
+                        {featuredPost.excerpt}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-full bg-primary/5 flex items-center justify-center text-primary font-bold border border-primary/10">
+                        {featuredPost.author.charAt(0)}
+                      </div>
+                      <div>
+                        <p className="font-body font-bold text-primary">{featuredPost.author}</p>
+                        <p className="font-label text-xs text-on-surface-variant uppercase tracking-widest">{featuredPost.date}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Grid Menu - Recipe 12 Style */}
+            <motion.section 
+              initial="hidden"
+              whileInView="show"
+              viewport={{ once: true }}
+              variants={{
+                hidden: { opacity: 0 },
+                show: {
+                  opacity: 1,
+                  transition: {
+                    staggerChildren: 0.1
+                  }
+                }
+              }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-24"
+            >
+              {otherPosts.map((post, idx) => (
+                <motion.article 
+                  variants={{
+                    hidden: { opacity: 0, y: 20 },
+                    show: { opacity: 1, y: 0 }
+                  }}
+                  key={post.id}
+                  className="group cursor-pointer space-y-8"
+                  onClick={() => onPostClick(post)}
+                >
+                  <div className="relative aspect-[4/5] rounded-[2.5rem] overflow-hidden">
+                    <img 
+                      src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} 
+                      alt={post.title} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute top-6 left-6 bg-white/90 backdrop-blur-md px-4 py-1 rounded-full text-[10px] font-bold tracking-widest text-primary uppercase border border-white/20">
+                      {post.category}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 text-[10px] font-bold tracking-widest text-on-surface-variant/50 uppercase">
+                      <span>0{idx + 1}</span>
+                      <span className="w-4 h-[1px] bg-on-surface-variant/20" />
+                      <span>{post.date}</span>
+                      <span className="w-4 h-[1px] bg-on-surface-variant/20" />
+                      <span>{calculateReadingTime(post.content)} min de leitura</span>
+                    </div>
+                    <h3 className="text-3xl font-headline font-bold text-primary leading-tight group-hover:text-tertiary transition-colors">
+                      {post.title}
+                    </h3>
+                    <p className="text-on-surface-variant line-clamp-2 font-serif text-lg italic opacity-80">
+                      {post.excerpt}
+                    </p>
+                  </div>
+                </motion.article>
+              ))}
+            </motion.section>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostClick: (post: BlogPost) => void }) => {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+
+  useEffect(() => {
+    if (!db) {
+      console.error("Firestore db instance is not initialized.");
+      return;
+    }
+    const q = query(
+      collection(db, 'posts'), 
+      where('status', '==', 'published'),
+      orderBy('date', 'desc')
+    );
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const postsData = snapshot.docs.slice(0, 3).map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as BlogPost[];
+      setPosts(postsData);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const calculateReadingTime = (text: string) => {
+    const wordsPerMinute = 200;
+    const words = text.split(/\s+/).length;
+    return Math.ceil(words / wordsPerMinute);
+  };
+
+  if (posts.length === 0) return null;
+
+  return (
+    <section className="py-16 px-4 sm:px-6 lg:px-8 bg-surface-container-lowest border-y border-outline-variant/5">
+      <div className="max-w-7xl mx-auto">
+        <div className="text-center mb-12 space-y-3">
+          <div className="font-label flex items-center justify-center gap-3 text-tertiary font-bold tracking-[0.2em] text-[10px] uppercase">
+            <span className="w-6 h-[1px] bg-tertiary" />
+            Conhecimento Aplicado
+            <span className="w-6 h-[1px] bg-tertiary" />
+          </div>
+          <h2 className="text-3xl md:text-5xl font-headline font-bold text-primary tracking-tighter leading-tight">
+            Editorial <span className="italic font-serif font-light text-tertiary">ConnectFARM</span>
+          </h2>
+        </div>
+
+        <motion.div 
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          variants={{
+            hidden: { opacity: 0 },
+            show: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1
+              }
+            }
+          }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+        >
+          {posts.map((post, idx) => (
+            <motion.article 
+              variants={{
+                hidden: { opacity: 0, y: 20 },
+                show: { opacity: 1, y: 0 }
+              }}
+              key={post.id}
+              className="group cursor-pointer space-y-4"
+              onClick={() => onPostClick(post)}
+            >
+              <div className="relative aspect-video rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-500">
+                <img 
+                  src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} 
+                  alt={post.title} 
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-md px-3 py-1 rounded-full text-[9px] font-bold tracking-widest text-primary uppercase border border-white/20">
+                  {post.category}
+                </div>
+              </div>
+              <div className="space-y-2 px-1">
+                <div className="font-label flex items-center gap-2 text-[9px] font-bold tracking-widest text-on-surface-variant/50 uppercase">
+                  <span>{post.date}</span>
+                  <span className="w-3 h-[1px] bg-on-surface-variant/20" />
+                  <span>{calculateReadingTime(post.content)} min</span>
+                </div>
+                <h3 className="text-lg font-headline font-semibold text-primary leading-tight group-hover:text-tertiary transition-colors line-clamp-1">
+                  {post.title}
+                </h3>
+                <p className="text-on-surface-variant line-clamp-2 font-serif text-sm italic opacity-70 leading-relaxed">
+                  {post.excerpt}
+                </p>
+              </div>
+            </motion.article>
+          ))}
+        </motion.div>
+
+        <div className="mt-10 text-center">
+          <button 
+            onClick={onSeeAll}
+            className="group inline-flex items-center gap-2 text-primary font-bold text-sm hover:text-tertiary transition-colors"
+          >
+            <span className="border-b border-primary/20 group-hover:border-tertiary transition-colors pb-0.5">Acessar editorial completo</span>
+            <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const BlogPostPage = ({ post, onBack }: { post: BlogPost, onBack: () => void }) => {
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const currentScroll = window.scrollY;
+      setScrollProgress((currentScroll / totalScroll) * 100);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!db) return;
+    const q = query(
+      collection(db, 'posts'),
+      where('status', '==', 'published'),
+      where('category', '==', post.category),
+      orderBy('date', 'desc')
+    );
+    
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const posts = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as BlogPost))
+        .filter(p => p.id !== post.id)
+        .slice(0, 2);
+      setRelatedPosts(posts);
+    });
+
+    return () => unsubscribe();
+  }, [post.id, post.category]);
+
+  const calculateReadingTime = (text: string) => {
+    const wordsPerMinute = 200;
+    const words = text.split(/\s+/).length;
+    return Math.ceil(words / wordsPerMinute);
+  };
+
+  const shareOnWhatsApp = () => {
+    const url = window.location.href;
+    const text = `Confira este artigo da ConnectFARM: ${post.title} - ${url}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+  };
+
+  return (
+    <div className="bg-[#fdfdfb] min-h-screen">
+      {/* Reading Progress Bar */}
+      <motion.div 
+        className="fixed top-0 left-0 h-1.5 bg-tertiary z-[60] origin-left"
+        style={{ scaleX: scrollProgress / 100 }}
+      />
+
+      {/* Immersive Header - Recipe 7 Style */}
+      <header className="relative h-[80vh] w-full overflow-hidden">
+        <motion.img 
+          initial={{ scale: 1.2 }}
+          animate={{ scale: 1 }}
+          transition={{ duration: 2 }}
+          src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop'} 
+          alt={post.title}
+          className="w-full h-full object-cover"
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#fdfdfb] via-primary/40 to-transparent" />
+        
+        <div className="absolute bottom-0 left-0 w-full p-4 sm:p-6 lg:p-20">
+          <div className="max-w-4xl mx-auto space-y-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="font-label flex items-center gap-4 text-white/80 font-bold tracking-[0.3em] text-xs uppercase"
+            >
+              <span className="bg-tertiary px-3 py-1 rounded text-white">{post.category}</span>
+              <span>{post.date}</span>
+              <span className="w-1 h-1 rounded-full bg-white/40" />
+              <span>{calculateReadingTime(post.content)} min de leitura</span>
+            </motion.div>
+            <motion.h1 
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.7 }}
+              className="text-5xl md:text-8xl font-headline font-bold text-white leading-[0.85] tracking-tighter"
+            >
+              {post.title}
+            </motion.h1>
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1 }}
+              className="flex items-center gap-6 pt-8"
+            >
+              <div className="h-16 w-16 rounded-full bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white text-2xl font-bold">
+                {post.author.charAt(0)}
+              </div>
+              <div className="text-white">
+                <p className="text-xl font-bold">{post.author}</p>
+                <p className="text-sm opacity-70 uppercase tracking-widest">Especialista ConnectFARM</p>
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </header>
+
+      {/* Content Area - Recipe 6 Style */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative">
+        <div className="absolute -left-32 top-24 hidden xl:flex flex-col items-center gap-8">
+          <button 
+            onClick={onBack}
+            className="flex flex-col items-center gap-4 text-primary/30 hover:text-tertiary transition-colors group"
+          >
+            <div className="h-12 w-12 rounded-full border border-current flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ArrowLeft size={20} />
+            </div>
+            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180">Voltar</span>
+          </button>
+
+          <div className="flex flex-col items-center gap-4 text-primary/20">
+            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180 mb-2">Compartilhar</span>
+            <button onClick={shareOnWhatsApp} className="hover:text-[#25D366] transition-colors"><WhatsAppIcon size={20} /></button>
+            <button onClick={() => {
+              navigator.clipboard.writeText(window.location.href);
+              alert('Link copiado!');
+            }} className="hover:text-primary transition-colors"><Globe size={20} /></button>
+          </div>
+        </div>
+
+        <div className="prose prose-2xl max-w-none text-primary/90 leading-[1.7] font-serif selection:bg-tertiary/20">
+          <div className="mb-16 [&>p:first-of-type]:first-letter:text-8xl [&>p:first-of-type]:first-letter:font-light [&>p:first-of-type]:first-letter:text-tertiary [&>p:first-of-type]:first-letter:mr-3 [&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:leading-[0.8]">
+            <Markdown>{post.content}</Markdown>
+          </div>
+        </div>
+
+        {/* Related Articles Section */}
+        {relatedPosts.length > 0 && (
+          <section className="mt-40 pt-20 border-t border-primary/5">
+            <div className="flex items-center justify-between mb-16">
+              <h3 className="text-4xl font-headline font-bold text-primary tracking-tight">Continue Lendo</h3>
+              <button 
+                onClick={onBack}
+                className="text-tertiary font-bold flex items-center gap-2 hover:gap-4 transition-all"
+              >
+                Ver todos <ArrowRight size={20} />
+              </button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              {relatedPosts.map(rPost => (
+                <article 
+                  key={rPost.id}
+                  className="group cursor-pointer space-y-6"
+                  onClick={() => {
+                    // In this SPA, we need to trigger a re-render with the new post
+                    // This is handled by the parent App component
+                    // We should ideally pass a prop to change the post
+                    // For now, we'll just go back to the blog list
+                    onBack();
+                  }}
+                >
+                  <div className="aspect-video rounded-3xl overflow-hidden">
+                    <img src={rPost.image} alt={rPost.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                  </div>
+                  <h4 className="text-2xl font-headline font-bold text-primary group-hover:text-tertiary transition-colors leading-tight">
+                    {rPost.title}
+                  </h4>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Footer of Article */}
+        <footer className="mt-32 pt-16 border-t border-primary/10">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+            <div className="flex items-center gap-6">
+              <div className="h-20 w-20 rounded-full bg-primary/5 border border-primary/10 flex items-center justify-center text-primary text-3xl font-bold">
+                {post.author.charAt(0)}
+              </div>
+              <div className="space-y-1">
+                <h4 className="text-2xl font-headline font-bold text-primary">{post.author}</h4>
+                <p className="text-on-surface-variant font-serif italic">Agrônomo e Pesquisador na ConnectFARM, focado em transformar dados em produtividade sustentável.</p>
+              </div>
+            </div>
+            <button 
+              onClick={onBack}
+              className="bg-primary text-white px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-transform shadow-xl"
+            >
+              Explorar mais artigos
+            </button>
+          </div>
+        </footer>
+      </main>
+    </div>
+  );
+};
+
+const AdminPanel = () => {
+  const [posts, setPosts] = useState<BlogPost[]>([]);
+  const [isAdding, setIsAdding] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [newPost, setNewPost] = useState({
+    title: '',
+    excerpt: '',
+    content: '',
+    category: 'Tecnologia',
+    image: '',
+    status: 'draft' as 'draft' | 'published'
+  });
+
+  useEffect(() => {
+    if (!db) {
+      console.error("Firestore db instance is not initialized.");
+      return;
+    }
+    const q = query(collection(db, 'posts'), orderBy('date', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const postsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as BlogPost[];
+      setPosts(postsData);
+    }, (error) => {
+      console.error("Error fetching posts:", error);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleGenerateAI = async () => {
+    if (!newPost.title) {
+      alert("Por favor, digite um título ou tema para a IA trabalhar.");
+      return;
+    }
+
+    setIsGenerating(true);
+    try {
+      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+      
+      const prompt = `Escreva um artigo de blog profissional para a ConnectFARM (empresa de AgTech focada em inteligência de dados e diagnóstico de solo). 
+        Tema: ${newPost.title}
+        O artigo deve ter um tom técnico porém acessível para produtores rurais. 
+        O conteúdo deve ter entre 300 e 600 palavras.
+        Inclua um resumo curto (excerpt) e o conteúdo completo.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: prompt,
+        config: {
+          systemInstruction: "Você é um redator especializado em agronegócio e tecnologia. Responda apenas em formato JSON.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              excerpt: { type: Type.STRING },
+              content: { type: Type.STRING },
+              category: { type: Type.STRING }
+            },
+            required: ["title", "excerpt", "content", "category"]
+          }
+        }
+      });
+
+      const data = JSON.parse(response.text || '{}');
+      if (data.title) {
+        setNewPost({
+          ...newPost,
+          title: data.title,
+          excerpt: data.excerpt,
+          content: data.content,
+          category: data.category
+        });
+      }
+    } catch (error) {
+      console.error("Erro na geração IA:", error);
+      alert("Erro ao gerar conteúdo com IA. Verifique se a chave da API está configurada.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!auth.currentUser || !db) {
+      if (!db) alert("Erro: Banco de dados não inicializado.");
+      return;
+    }
+
+    try {
+      if (editingId) {
+        await updateDoc(doc(db, 'posts', editingId), {
+          ...newPost,
+          author: auth.currentUser.displayName || 'Admin',
+          authorId: auth.currentUser.uid
+        });
+      } else {
+        await addDoc(collection(db, 'posts'), {
+          ...newPost,
+          date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }),
+          author: auth.currentUser.displayName || 'Admin',
+          authorId: auth.currentUser.uid
+        });
+      }
+      resetForm();
+    } catch (error) {
+      console.error("Erro ao salvar post:", error);
+      alert("Erro ao salvar. Verifique suas permissões.");
+    }
+  };
+
+  const handleEdit = (post: BlogPost) => {
+    setNewPost({
+      title: post.title,
+      excerpt: post.excerpt,
+      content: post.content,
+      category: post.category,
+      image: post.image,
+      status: post.status
+    });
+    setEditingId(post.id);
+    setIsAdding(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Tem certeza que deseja excluir este artigo?") || !db) return;
+    try {
+      await deleteDoc(doc(db, 'posts', id));
+    } catch (error) {
+      console.error("Erro ao excluir:", error);
+    }
+  };
+
+  const resetForm = () => {
+    setIsAdding(false);
+    setEditingId(null);
+    setNewPost({ title: '', excerpt: '', content: '', category: 'Tecnologia', image: '', status: 'draft' });
+  };
+
+  return (
+    <div className="pt-32 pb-20 px-4 sm:px-6 lg:px-8 bg-surface-container-lowest min-h-screen">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex items-center justify-between mb-12">
+          <div className="flex items-center gap-4">
+            <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center text-white">
+              <LayoutDashboard size={24} />
+            </div>
+            <h1 className="text-3xl font-headline font-bold text-primary">Painel do Blog</h1>
+          </div>
+          <button 
+            onClick={() => isAdding ? resetForm() : setIsAdding(true)}
+            className="bg-tertiary text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-transform"
+          >
+            {isAdding ? <X size={20} /> : <Plus size={20} />}
+            {isAdding ? 'Cancelar' : 'Novo Artigo'}
+          </button>
+        </div>
+
+        {isAdding && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="glass-panel p-8 rounded-3xl mb-12 border border-primary/10"
+          >
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="flex items-center justify-between gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <div className="flex items-center gap-3">
+                  <Brain className="text-tertiary" size={24} />
+                  <p className="text-sm font-medium text-primary">Deseja ajuda da IA para escrever?</p>
+                </div>
+                <button 
+                  type="button"
+                  onClick={handleGenerateAI}
+                  disabled={isGenerating}
+                  className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
+                >
+                  {isGenerating ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
+                  Gerar com IA
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="md:col-span-2 space-y-2">
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">Título / Tema</label>
+                  <input 
+                    required
+                    value={newPost.title}
+                    onChange={e => setNewPost({...newPost, title: e.target.value})}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                    placeholder="Ex: O impacto da adubação de precisão..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">Status</label>
+                  <select 
+                    value={newPost.status}
+                    onChange={e => setNewPost({...newPost, status: e.target.value as 'draft' | 'published'})}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                  >
+                    <option value="draft">Rascunho</option>
+                    <option value="published">Publicado</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">Categoria</label>
+                  <select 
+                    value={newPost.category}
+                    onChange={e => setNewPost({...newPost, category: e.target.value})}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                  >
+                    <option>Tecnologia</option>
+                    <option>Gestão</option>
+                    <option>Inovação</option>
+                    <option>Mercado</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">URL da Imagem</label>
+                  <input 
+                    value={newPost.image}
+                    onChange={e => setNewPost({...newPost, image: e.target.value})}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                    placeholder="https://images.unsplash.com/..."
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-primary uppercase tracking-wider">Resumo (Excerpt)</label>
+                <textarea 
+                  required
+                  value={newPost.excerpt}
+                  onChange={e => setNewPost({...newPost, excerpt: e.target.value})}
+                  className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-20"
+                  placeholder="Uma breve descrição para a vitrine..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-bold text-primary uppercase tracking-wider">Conteúdo Completo</label>
+                <textarea 
+                  required
+                  value={newPost.content}
+                  onChange={e => setNewPost({...newPost, content: e.target.value})}
+                  className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-64"
+                  placeholder="Escreva seu artigo aqui..."
+                />
+              </div>
+              <button type="submit" className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors">
+                {editingId ? 'Salvar Alterações' : 'Publicar Artigo'}
+              </button>
+            </form>
+          </motion.div>
+        )}
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-bold text-primary mb-6">Artigos</h2>
+          {posts.map(post => (
+            <div key={post.id} className="bg-white p-6 rounded-2xl border border-outline-variant/50 flex items-center justify-between group hover:border-tertiary/30 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="h-16 w-16 rounded-xl overflow-hidden bg-surface-container relative">
+                  <img src={post.image || ''} alt="" className="w-full h-full object-cover" />
+                  {post.status === 'draft' && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <span className="text-[8px] font-bold text-white uppercase tracking-tighter">Rascunho</span>
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-bold text-primary flex items-center gap-2">
+                    {post.title}
+                    {post.status === 'draft' && <span className="text-[10px] bg-surface-container-high px-2 py-0.5 rounded text-on-surface-variant">Rascunho</span>}
+                  </h3>
+                  <p className="text-xs text-on-surface-variant">{post.date} • {post.category}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <button onClick={() => handleEdit(post)} className="p-2 text-on-surface-variant hover:text-primary"><FileText size={20} /></button>
+                <button onClick={() => handleDelete(post.id)} className="p-2 text-on-surface-variant hover:text-error"><Trash2 size={20} /></button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -986,6 +1956,13 @@ const Footer = () => {
 
 export default function App() {
   const [activePage, setActivePage] = useState('home');
+  const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+
+  const handlePostClick = (post: BlogPost) => {
+    setSelectedPost(post);
+    setActivePage('post');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="min-h-screen selection:bg-tertiary-fixed selection:text-on-tertiary-fixed">
@@ -1002,6 +1979,10 @@ export default function App() {
             <PlatformSection />
             <OtherServicesSection />
             <ResultsSection />
+            <BlogPreview 
+              onSeeAll={() => setActivePage('blog')} 
+              onPostClick={handlePostClick}
+            />
             <AboutSection />
             
             {/* Final CTA Section */}
@@ -1037,6 +2018,12 @@ export default function App() {
               </div>
             </section>
           </>
+        ) : activePage === 'blog' ? (
+          <BlogPage onPostClick={handlePostClick} />
+        ) : activePage === 'post' && selectedPost ? (
+          <BlogPostPage post={selectedPost} onBack={() => setActivePage('blog')} />
+        ) : activePage === 'admin' ? (
+          <AdminPanel />
         ) : activePage === 'integridade' ? (
           <WhistleblowingChannel />
         ) : (

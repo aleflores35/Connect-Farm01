@@ -1,7 +1,7 @@
-# Notas do Projeto - ConnectFarm
+# Notas do Projeto - ConnectFARM
 
 ## Pendências de Configuração
-- [ ] **Configurar Resend API Key**: O Canal de Denúncias está em modo de simulação. Às 18h de hoje (07/04), o usuário solicitou um lembrete para configurar a chave real para que os e-mails sejam enviados para `rodrigo@connectfarm.com.br`.
+- [x] **Configurar Resend API Key**: Chave configurada pelo usuário. O sistema está pronto para envio real via Resend para `rodrigo@connectfarm.com.br`.
 
 ## Regras de Negócio
 - O Canal de Denúncias deve priorizar o anonimato e a segurança dos dados.

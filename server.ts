@@ -44,7 +44,7 @@ async function startServer() {
       const { data, error } = await resend.emails.send({
         from: "Canal de Denúncias <onboarding@resend.dev>",
         to: ["rodrigo@connectfarm.com.br"],
-        subject: "Nova Denúncia - ConnectFarm",
+        subject: "Nova Denúncia - ConnectFARM",
         text: emailContent,
       });
 
@@ -78,6 +78,9 @@ async function startServer() {
   app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  return app;
 }
 
-startServer();
+const appPromise = startServer();
+export default appPromise;
