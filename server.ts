@@ -18,7 +18,27 @@ async function startServer() {
 
   // API route for whistleblowing form
   app.post("/api/denuncia", async (req, res) => {
-    const { isAnonymous, wantsContact, name, phone, message } = req.body;
+    const MAX_MESSAGE_LEN = 5000;
+    const MAX_NAME_LEN = 200;
+    const MAX_PHONE_LEN = 50;
+    const trimToMax = (value: unknown, max: number): string => {
+      if (typeof value !== "string") return "";
+      return value.trim().slice(0, max);
+    };
+
+    const body = req.body || {};
+
+    // Honeypot: real users never fill this hidden field. Bots do.
+    // Return 200 silently to avoid teaching attackers we detected them.
+    if (body.website && String(body.website).trim().length > 0) {
+      return res.status(200).json({ success: true });
+    }
+
+    const isAnonymous = Boolean(body.isAnonymous);
+    const wantsContact = Boolean(body.wantsContact);
+    const message = trimToMax(body.message, MAX_MESSAGE_LEN);
+    const name = trimToMax(body.name, MAX_NAME_LEN);
+    const phone = trimToMax(body.phone, MAX_PHONE_LEN);
 
     if (!message) {
       return res.status(400).json({ error: "Mensagem é obrigatória" });
@@ -31,7 +51,7 @@ async function startServer() {
       Deseja contato: ${wantsContact ? "Sim" : "Não"}
       Nome: ${isAnonymous ? "Anônimo" : (name || "Não informado")}
       Telefone: ${isAnonymous ? "Anônimo" : (phone || "Não informado")}
-      
+
       Mensagem:
       ${message}
     `;

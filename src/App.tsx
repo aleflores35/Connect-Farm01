@@ -43,6 +43,7 @@ import {
 import { useState, useEffect } from 'react';
 import Markdown from 'react-markdown';
 import { cn } from '@/src/lib/utils';
+import { isAdminEmail } from './lib/admins';
 import { db, auth } from './firebase';
 import { 
   collection, 
@@ -171,10 +172,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
     }
   };
 
-  const isAdmin = user && (
-    user.email === "alessandro.flores16@gmail.com" || 
-    user.email === "rodrigo@connectfarm.com.br"
-  );
+  const isAdmin = isAdminEmail(user?.email);
 
   const navLinks = [
     { name: 'HOME', id: 'home' },
@@ -318,6 +316,7 @@ const WhistleblowingChannel = () => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [message, setMessage] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -328,6 +327,9 @@ const WhistleblowingChannel = () => {
 
     setIsSubmitting(true);
     setError(null);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch('/api/denuncia', {
@@ -341,7 +343,9 @@ const WhistleblowingChannel = () => {
           name: isAnonymous ? 'Anônimo' : name,
           phone: isAnonymous ? 'Anônimo' : phone,
           message,
+          website: honeypot,
         }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -350,9 +354,14 @@ const WhistleblowingChannel = () => {
 
       setSubmitted(true);
     } catch (err) {
-      setError('Ocorreu um erro ao enviar sua denúncia. Por favor, tente novamente.');
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        setError('A conexão demorou demais. Verifique sua internet e tente novamente.');
+      } else {
+        setError('Ocorreu um erro ao enviar sua denúncia. Por favor, tente novamente.');
+      }
       console.error(err);
     } finally {
+      clearTimeout(timeoutId);
       setIsSubmitting(false);
     }
   };
@@ -396,6 +405,20 @@ const WhistleblowingChannel = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white p-2 space-y-6">
+          {/* Honeypot field — hidden from real users, attractive to bots. */}
+          <div className="absolute left-[-9999px] top-0" aria-hidden="true">
+            <label htmlFor="contact-website">Website (deixe em branco)</label>
+            <input
+              id="contact-website"
+              type="text"
+              name="website"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+              tabIndex={-1}
+              autoComplete="off"
+            />
+          </div>
+
           <div className="space-y-4">
             <label className="flex items-center gap-3 cursor-pointer group">
               <div className={cn(
@@ -404,11 +427,11 @@ const WhistleblowingChannel = () => {
               )}>
                 {isAnonymous && <CheckCircle2 size={14} className="text-white" />}
               </div>
-              <input 
-                type="checkbox" 
-                className="hidden" 
-                checked={isAnonymous} 
-                onChange={() => setIsAnonymous(!isAnonymous)} 
+              <input
+                type="checkbox"
+                className="hidden"
+                checked={isAnonymous}
+                onChange={() => setIsAnonymous(!isAnonymous)}
               />
               <span className="text-sm text-gray-600">Desejo fazer a denúncia sem me identificar.</span>
             </label>

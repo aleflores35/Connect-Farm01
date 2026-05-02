@@ -35,6 +35,8 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    // Admin email allowlist mirrors src/lib/admins.ts ADMIN_EMAILS.
+    // Firestore rules can't import TS — keep both lists in sync when adding/removing admins.
     function isAdmin() {
       return isAuthenticated() &&
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
