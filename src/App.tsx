@@ -56,14 +56,13 @@ import {
   getDocFromServer,
   doc
 } from 'firebase/firestore';
-import { 
-  signInWithPopup, 
-  GoogleAuthProvider, 
+import {
+  signInWithPopup,
+  GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
   User as FirebaseUser
 } from 'firebase/auth';
-import { GoogleGenAI, Type } from "@google/genai";
 
 const WHATSAPP_NUMBER = "555136300682";
 const WHATSAPP_DISPLAY = "+55 51 3630-0682";
@@ -81,45 +80,6 @@ interface BlogPost {
   authorId: string;
   status: 'draft' | 'published';
 }
-
-const MOCK_POSTS: BlogPost[] = [
-  {
-    id: '1',
-    title: 'O impacto da adubação de precisão na produtividade da soja',
-    excerpt: 'Como o ajuste fino dos nutrientes pode elevar o patamar de colheita sem aumentar o custo por hectare.',
-    content: 'Conteúdo completo do post 1...',
-    category: 'Tecnologia',
-    date: '10 Abr 2026',
-    image: 'https://images.unsplash.com/photo-1592982537447-7440770cbfc9?q=80&w=800&auto=format&fit=crop',
-    author: 'Rodrigo ConnectFARM',
-    authorId: 'admin',
-    status: 'published'
-  },
-  {
-    id: '2',
-    title: 'Gestão de dados: o novo adubo do produtor moderno',
-    excerpt: 'Por que coletar dados é apenas o começo, e como a inteligência da ConnectFARM transforma números em lucro.',
-    content: 'Conteúdo completo do post 2...',
-    category: 'Gestão',
-    date: '08 Abr 2026',
-    image: 'https://images.unsplash.com/photo-1586771107445-d3ca888129ff?q=80&w=600&auto=format&fit=crop',
-    author: 'Equipe Técnica',
-    authorId: 'admin',
-    status: 'published'
-  },
-  {
-    id: '3',
-    title: 'Previsão de safra e o uso de satélites no monitoramento',
-    excerpt: 'Entenda como a tecnologia espacial ajuda a antecipar problemas e garantir a saúde do talhão.',
-    content: 'Conteúdo completo do post 3...',
-    category: 'Inovação',
-    date: '05 Abr 2026',
-    image: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop',
-    author: 'Eng. Agrônomo',
-    authorId: 'admin',
-    status: 'published'
-  }
-];
 
 // --- Components ---
 
@@ -284,7 +244,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                     className="bg-tertiary/10 text-tertiary px-4 py-2 rounded-xl font-bold text-xs hover:bg-tertiary hover:text-white transition-all border border-tertiary/20 flex items-center gap-2"
                   >
                     <LayoutDashboard size={16} />
-                    PAINEL BLOG (VALIDAR)
+                    PAINEL BLOG
                   </button>
                   <div className="flex items-center gap-4 pl-4 border-l border-outline-variant/20">
                     <div className="flex flex-col items-end">
@@ -1640,46 +1600,29 @@ const AdminPanel = () => {
 
     setIsGenerating(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-      
-      const prompt = `Escreva um artigo de blog profissional para a ConnectFARM (empresa de AgTech focada em inteligência de dados e diagnóstico de solo). 
-        Tema: ${newPost.title}
-        O artigo deve ter um tom técnico porém acessível para produtores rurais. 
-        O conteúdo deve ter entre 300 e 600 palavras.
-        Inclua um resumo curto (excerpt) e o conteúdo completo.`;
-
-      const response = await ai.models.generateContent({
-        model: "gemini-flash-latest",
-        contents: prompt,
-        config: {
-          systemInstruction: "Você é um redator especializado em agronegócio e tecnologia. Responda apenas em formato JSON.",
-          responseMimeType: "application/json",
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              excerpt: { type: Type.STRING },
-              content: { type: Type.STRING },
-              category: { type: Type.STRING }
-            },
-            required: ["title", "excerpt", "content", "category"]
-          }
-        }
+      const response = await fetch('/api/generate-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ topic: newPost.title }),
       });
 
-      const data = JSON.parse(response.text || '{}');
-      if (data.title) {
-        setNewPost({
-          ...newPost,
-          title: data.title,
-          excerpt: data.excerpt,
-          content: data.content,
-          category: data.category
-        });
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.data?.title) {
+        throw new Error(payload?.error || 'Resposta inválida do servidor');
       }
+
+      const data = payload.data;
+      setNewPost({
+        ...newPost,
+        title: data.title,
+        excerpt: data.excerpt,
+        content: data.content,
+        category: data.category,
+      });
     } catch (error) {
       console.error("Erro na geração IA:", error);
-      alert("Erro ao gerar conteúdo com IA. Verifique se a chave da API está configurada.");
+      alert("Erro ao gerar conteúdo com IA. Verifique se o servidor está configurado.");
     } finally {
       setIsGenerating(false);
     }
@@ -1941,7 +1884,7 @@ const Footer = () => {
         </div>
 
         <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-surface/50 font-label">
-          <p>© 2024 ConnectFARM. Todos os direitos reservados.</p>
+          <p>© 2026 ConnectFARM. Todos os direitos reservados.</p>
           <div className="flex gap-8">
             <a href="#" className="hover:text-surface transition-colors">Política de Privacidade</a>
             <a href="#" className="hover:text-surface transition-colors">Termos de Uso</a>

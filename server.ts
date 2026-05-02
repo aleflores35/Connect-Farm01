@@ -2,11 +2,13 @@ import express from "express";
 import { createServer as createViteServer } from "vite";
 import path from "path";
 import { Resend } from "resend";
+import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
+const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
 async function startServer() {
   const app = express();
@@ -57,6 +59,62 @@ async function startServer() {
     } catch (err) {
       console.error("Erro no servidor:", err);
       res.status(500).json({ error: "Erro interno no servidor" });
+    }
+  });
+
+  // API route for AI blog post generation (Gemini)
+  app.post("/api/generate-post", async (req, res) => {
+    const { topic } = req.body || {};
+
+    if (!topic || typeof topic !== "string" || topic.trim().length === 0) {
+      return res.status(400).json({ error: "Tópico é obrigatório" });
+    }
+
+    if (topic.length > 500) {
+      return res.status(400).json({ error: "Tópico muito longo (máx 500 caracteres)" });
+    }
+
+    if (!ai) {
+      return res.status(503).json({ error: "GEMINI_API_KEY não configurada no servidor" });
+    }
+
+    try {
+      const prompt = `Escreva um artigo de blog profissional para a ConnectFARM (empresa de AgTech focada em inteligência de dados e diagnóstico de solo).
+        Tema: ${topic}
+        O artigo deve ter um tom técnico porém acessível para produtores rurais.
+        O conteúdo deve ter entre 300 e 600 palavras.
+        Inclua um resumo curto (excerpt) e o conteúdo completo.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-flash-latest",
+        contents: prompt,
+        config: {
+          systemInstruction:
+            "Você é um redator especializado em agronegócio e tecnologia. Responda apenas em formato JSON.",
+          responseMimeType: "application/json",
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              title: { type: Type.STRING },
+              excerpt: { type: Type.STRING },
+              content: { type: Type.STRING },
+              category: { type: Type.STRING },
+            },
+            required: ["title", "excerpt", "content", "category"],
+          },
+        },
+      });
+
+      const data = JSON.parse(response.text || "{}");
+
+      if (!data.title) {
+        return res.status(502).json({ error: "Resposta inválida do modelo" });
+      }
+
+      return res.status(200).json({ success: true, data });
+    } catch (err) {
+      console.error("Erro ao gerar post:", err);
+      return res.status(500).json({ error: "Erro ao gerar conteúdo com IA" });
     }
   });
 
