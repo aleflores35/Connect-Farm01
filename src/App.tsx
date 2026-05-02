@@ -690,9 +690,11 @@ const ProblemSection = () => {
           </div>
           <div className="relative">
             <div className="aspect-square rounded-3xl overflow-hidden shadow-2xl">
-              <img 
-                src="/amostras.png" 
-                alt="Amostras de solo no campo - ConnectFARM" 
+              <img
+                src="/amostras.png"
+                alt="Amostras de solo no campo - ConnectFARM"
+                loading="lazy"
+                decoding="async"
                 className="w-full h-full object-cover"
                 referrerPolicy="no-referrer"
               />
@@ -1041,8 +1043,8 @@ const AboutSection = () => {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <img src="/10.04.2026_17.29.26_REC.png" alt="Atendimento RTA ConnectFARM" className="rounded-2xl h-64 w-full object-cover mt-12" referrerPolicy="no-referrer" />
-            <img src="https://images.unsplash.com/photo-1586771107445-d3ca888129ff?q=80&w=600&auto=format&fit=crop" alt="Lab work" className="rounded-2xl h-64 w-full object-cover" referrerPolicy="no-referrer" />
+            <img src="/10.04.2026_17.29.26_REC.png" alt="Atendimento RTA ConnectFARM" loading="lazy" decoding="async" className="rounded-2xl h-64 w-full object-cover mt-12" referrerPolicy="no-referrer" />
+            <img src="https://images.unsplash.com/photo-1586771107445-d3ca888129ff?q=80&w=600&auto=format&fit=crop" alt="Lab work" loading="lazy" decoding="async" className="rounded-2xl h-64 w-full object-cover" referrerPolicy="no-referrer" />
           </div>
         </div>
       </div>
@@ -1154,12 +1156,14 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
               >
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
                   <div className="lg:col-span-7 overflow-hidden rounded-[2rem] aspect-[16/10]">
-                    <motion.img 
+                    <motion.img
                       initial={{ scale: 1.1 }}
                       whileInView={{ scale: 1 }}
                       transition={{ duration: 1.5 }}
-                      src={featuredPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1200&auto=format&fit=crop'} 
+                      src={featuredPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1200&auto=format&fit=crop'}
                       alt={featuredPost.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
                       referrerPolicy="no-referrer"
                     />
@@ -1215,9 +1219,11 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                   onClick={() => onPostClick(post)}
                 >
                   <div className="relative aspect-[4/5] rounded-[2.5rem] overflow-hidden">
-                    <img 
-                      src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} 
-                      alt={post.title} 
+                    <img
+                      src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'}
+                      alt={post.title}
+                      loading="lazy"
+                      decoding="async"
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       referrerPolicy="no-referrer"
                     />
@@ -1322,9 +1328,11 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
               onClick={() => onPostClick(post)}
             >
               <div className="relative aspect-video rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-500">
-                <img 
-                  src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} 
-                  alt={post.title} 
+                <img
+                  src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'}
+                  alt={post.title}
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   referrerPolicy="no-referrer"
                 />
@@ -1363,7 +1371,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
   );
 };
 
-const BlogPostPage = ({ post, onBack }: { post: BlogPost, onBack: () => void }) => {
+const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: () => void, onPostClick: (post: BlogPost) => void }) => {
   const [scrollProgress, setScrollProgress] = useState(0);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
 
@@ -1512,19 +1520,13 @@ const BlogPostPage = ({ post, onBack }: { post: BlogPost, onBack: () => void }) 
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
               {relatedPosts.map(rPost => (
-                <article 
+                <article
                   key={rPost.id}
                   className="group cursor-pointer space-y-6"
-                  onClick={() => {
-                    // In this SPA, we need to trigger a re-render with the new post
-                    // This is handled by the parent App component
-                    // We should ideally pass a prop to change the post
-                    // For now, we'll just go back to the blog list
-                    onBack();
-                  }}
+                  onClick={() => onPostClick(rPost)}
                 >
                   <div className="aspect-video rounded-3xl overflow-hidden">
-                    <img src={rPost.image} alt={rPost.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={rPost.image} alt={rPost.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <h4 className="text-2xl font-headline font-bold text-primary group-hover:text-tertiary transition-colors leading-tight">
                     {rPost.title}
@@ -1811,7 +1813,7 @@ const AdminPanel = () => {
             <div key={post.id} className="bg-white p-6 rounded-2xl border border-outline-variant/50 flex items-center justify-between group hover:border-tertiary/30 transition-colors">
               <div className="flex items-center gap-4">
                 <div className="h-16 w-16 rounded-xl overflow-hidden bg-surface-container relative">
-                  <img src={post.image || ''} alt="" className="w-full h-full object-cover" />
+                  <img src={post.image || ''} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   {post.status === 'draft' && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                       <span className="text-[8px] font-bold text-white uppercase tracking-tighter">Rascunho</span>
@@ -1964,21 +1966,27 @@ export default function App() {
         ) : activePage === 'blog' ? (
           <BlogPage onPostClick={handlePostClick} />
         ) : activePage === 'post' && selectedPost ? (
-          <BlogPostPage post={selectedPost} onBack={() => setActivePage('blog')} />
+          <BlogPostPage post={selectedPost} onBack={() => setActivePage('blog')} onPostClick={handlePostClick} />
         ) : activePage === 'admin' ? (
           <AdminPanel />
         ) : activePage === 'integridade' ? (
           <WhistleblowingChannel />
         ) : (
-          <div className="py-40 text-center">
-            <h2 className="text-3xl font-bold text-[#064A17]">Página em desenvolvimento</h2>
-            <button 
+          <section className="py-40 px-4 text-center min-h-[calc(100vh-96px)] flex flex-col items-center justify-center">
+            <p className="font-label text-xs uppercase tracking-[0.4em] text-tertiary font-bold mb-6">404</p>
+            <h2 className="font-headline text-5xl md:text-7xl font-bold text-primary mb-6 tracking-tight">
+              Página não encontrada
+            </h2>
+            <p className="text-on-surface-variant text-lg max-w-md mb-10">
+              O endereço que você procura não existe ou foi movido. Volte pra home e a gente segue de lá.
+            </p>
+            <button
               onClick={() => setActivePage('home')}
-              className="mt-6 text-[#868C14] font-bold hover:underline"
+              className="bg-primary text-white px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-transform shadow-xl"
             >
-              Voltar para Home
+              Voltar para a Home
             </button>
-          </div>
+          </section>
         )}
       </main>
       <Footer />
