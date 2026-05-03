@@ -713,8 +713,9 @@ const ProblemSection = () => {
           </div>
           <div className="relative">
             <div className="aspect-square rounded-3xl overflow-hidden shadow-2xl">
+              {/* TODO: replace with actual ConnectFARM soil-sampling photo (placeholder Unsplash) */}
               <img
-                src="/amostras.png"
+                src="https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?q=80&w=800&auto=format&fit=crop"
                 alt="Amostras de solo no campo - ConnectFARM"
                 loading="lazy"
                 decoding="async"
