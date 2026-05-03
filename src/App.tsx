@@ -62,6 +62,9 @@ import {
   GoogleAuthProvider,
   onAuthStateChanged,
   signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   User as FirebaseUser
 } from 'firebase/auth';
 
@@ -140,27 +143,87 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
   }, []);
 
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'signup' | 'reset'>('login');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [authInfo, setAuthInfo] = useState<string | null>(null);
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
 
-  const handleLogin = async () => {
+  const openAuthModal = () => {
+    setShowAuthModal(true);
+    setAuthMode('login');
+    setEmailInput('');
+    setPasswordInput('');
+    setAuthError(null);
+    setAuthInfo(null);
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+  };
+
+  const friendlyAuthError = (code: string): string => {
+    switch (code) {
+      case 'auth/invalid-email': return 'Email inválido.';
+      case 'auth/user-not-found': return 'Conta não encontrada.';
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential': return 'Email ou senha incorretos.';
+      case 'auth/email-already-in-use': return 'Esse email já tem uma conta. Faça login.';
+      case 'auth/weak-password': return 'A senha precisa de pelo menos 6 caracteres.';
+      case 'auth/too-many-requests': return 'Muitas tentativas. Tente novamente em alguns minutos.';
+      case 'auth/network-request-failed': return 'Sem conexão. Verifique sua internet.';
+      default: return 'Não foi possível concluir. Tente novamente.';
+    }
+  };
+
+  const handleGoogleLogin = async () => {
     if (isLoggingIn) return;
     setIsLoggingIn(true);
-    
+    setAuthError(null);
+
     const provider = new GoogleAuthProvider();
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
       await signInWithPopup(auth, provider);
+      closeAuthModal();
     } catch (error: any) {
-      if (error.code === 'auth/popup-closed-by-user') {
-        console.log("Login cancelado pelo usuário.");
-      } else if (error.code === 'auth/cancelled-popup-request') {
-        console.log("Requisição de popup cancelada.");
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        // user cancelled — silent
       } else {
-        console.error("Erro ao fazer login:", error);
-        alert("Erro ao fazer login. Por favor, tente novamente.");
+        console.error("Erro ao fazer login Google:", error);
+        setAuthError(friendlyAuthError(error.code));
       }
     } finally {
       setIsLoggingIn(false);
+    }
+  };
+
+  const handleEmailAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isAuthSubmitting) return;
+    setAuthError(null);
+    setAuthInfo(null);
+    setIsAuthSubmitting(true);
+
+    try {
+      if (authMode === 'signup') {
+        await createUserWithEmailAndPassword(auth, emailInput, passwordInput);
+        closeAuthModal();
+      } else if (authMode === 'login') {
+        await signInWithEmailAndPassword(auth, emailInput, passwordInput);
+        closeAuthModal();
+      } else {
+        await sendPasswordResetEmail(auth, emailInput);
+        setAuthInfo('Se essa conta existir, você vai receber um link no seu email.');
+      }
+    } catch (error: any) {
+      console.error("Erro de autenticação:", error);
+      setAuthError(friendlyAuthError(error.code));
+    } finally {
+      setIsAuthSubmitting(false);
     }
   };
 
@@ -253,22 +316,11 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                   </div>
                 </div>
               ) : (
-                <button 
-                  onClick={handleLogin}
-                  disabled={isLoggingIn}
-                  className={cn(
-                    "bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#e5b521] transition-all shadow-sm flex items-center gap-2",
-                    isLoggingIn && "opacity-70 cursor-not-allowed"
-                  )}
+                <button
+                  onClick={openAuthModal}
+                  className="bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#e5b521] transition-all shadow-sm flex items-center gap-2"
                 >
-                  {isLoggingIn ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-[#064A17]/30 border-t-[#064A17] rounded-full animate-spin" />
-                      Acessando...
-                    </>
-                  ) : (
-                    "Acesse sua Conta"
-                  )}
+                  Acesse sua Conta
                 </button>
               )}
             </div>
@@ -301,10 +353,159 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
               {link.name}
             </button>
           ))}
-          <button className="w-full bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm">
+          <button
+            onClick={() => { setIsOpen(false); openAuthModal(); }}
+            className="w-full bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm"
+          >
             Acesse sua Conta
           </button>
         </motion.div>
+      )}
+
+      {showAuthModal && (
+        <div
+          className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center px-4"
+          onClick={closeAuthModal}
+        >
+          <div
+            className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl relative"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={closeAuthModal}
+              className="absolute top-4 right-4 text-on-surface-variant hover:text-primary transition-colors"
+              aria-label="Fechar"
+            >
+              <X size={20} />
+            </button>
+
+            <h2 className="font-headline text-3xl font-bold text-primary mb-2">
+              {authMode === 'signup' ? 'Criar conta' : authMode === 'reset' ? 'Recuperar senha' : 'Acesse sua conta'}
+            </h2>
+            <p className="text-on-surface-variant text-sm mb-6">
+              {authMode === 'reset'
+                ? 'Vamos enviar um link de recuperação para o seu email.'
+                : 'Use sua conta Google ou entre com email e senha.'}
+            </p>
+
+            {authMode !== 'reset' && (
+              <>
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  disabled={isLoggingIn}
+                  className={cn(
+                    "w-full border border-outline-variant rounded-xl py-3 px-4 font-bold text-sm flex items-center justify-center gap-3 hover:bg-surface-container-low transition-colors mb-4",
+                    isLoggingIn && "opacity-70 cursor-not-allowed"
+                  )}
+                >
+                  {isLoggingIn ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                      Acessando...
+                    </>
+                  ) : (
+                    <>
+                      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+                        <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z"/>
+                        <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.836.86-3.048.86-2.344 0-4.328-1.583-5.036-3.71H.957v2.332A8.997 8.997 0 0 0 9 18z"/>
+                        <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
+                        <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
+                      </svg>
+                      Continuar com Google
+                    </>
+                  )}
+                </button>
+
+                <div className="flex items-center gap-3 my-4">
+                  <div className="flex-1 h-px bg-outline-variant/30" />
+                  <span className="text-xs text-on-surface-variant uppercase tracking-widest">ou</span>
+                  <div className="flex-1 h-px bg-outline-variant/30" />
+                </div>
+              </>
+            )}
+
+            <form onSubmit={handleEmailAuth} className="space-y-4">
+              <div>
+                <label className="text-xs font-bold text-primary uppercase tracking-wider">Email</label>
+                <input
+                  type="email"
+                  required
+                  value={emailInput}
+                  onChange={(e) => setEmailInput(e.target.value)}
+                  className="mt-1 w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                  placeholder="seu@email.com"
+                  autoComplete="email"
+                />
+              </div>
+
+              {authMode !== 'reset' && (
+                <div>
+                  <label className="text-xs font-bold text-primary uppercase tracking-wider">Senha</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={passwordInput}
+                    onChange={(e) => setPasswordInput(e.target.value)}
+                    className="mt-1 w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                    placeholder={authMode === 'signup' ? 'Mínimo 6 caracteres' : 'Sua senha'}
+                    autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
+                  />
+                </div>
+              )}
+
+              {authError && (
+                <div className="p-3 bg-red-50 text-red-600 rounded-lg text-sm">
+                  {authError}
+                </div>
+              )}
+
+              {authInfo && (
+                <div className="p-3 bg-green-50 text-green-700 rounded-lg text-sm">
+                  {authInfo}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isAuthSubmitting}
+                className={cn(
+                  "w-full bg-primary text-white py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2",
+                  isAuthSubmitting ? "opacity-70 cursor-not-allowed" : "hover:bg-primary/90"
+                )}
+              >
+                {isAuthSubmitting && (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                )}
+                {authMode === 'signup' ? 'Criar conta' : authMode === 'reset' ? 'Enviar link' : 'Entrar'}
+              </button>
+            </form>
+
+            <div className="mt-6 flex flex-col gap-2 text-sm text-center">
+              {authMode === 'login' && (
+                <>
+                  <button onClick={() => { setAuthMode('signup'); setAuthError(null); setAuthInfo(null); }} className="text-tertiary font-bold hover:underline">
+                    Criar uma conta
+                  </button>
+                  <button onClick={() => { setAuthMode('reset'); setAuthError(null); setAuthInfo(null); }} className="text-on-surface-variant hover:underline">
+                    Esqueci a senha
+                  </button>
+                </>
+              )}
+              {authMode === 'signup' && (
+                <button onClick={() => { setAuthMode('login'); setAuthError(null); setAuthInfo(null); }} className="text-tertiary font-bold hover:underline">
+                  Já tenho conta
+                </button>
+              )}
+              {authMode === 'reset' && (
+                <button onClick={() => { setAuthMode('login'); setAuthError(null); setAuthInfo(null); }} className="text-tertiary font-bold hover:underline">
+                  Voltar para login
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </nav>
   );
