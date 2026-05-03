@@ -839,25 +839,25 @@ const DiagnosisIncludesSection = () => {
 const HowItWorksSection = () => {
   const steps = [
     {
-      id: 'Passo 1',
+      id: '01',
       title: 'A gente vai até você',
       description: 'Um agrônomo ConnectFARM visita sua fazenda, entende seus objetivos e faz a coleta de solo nos seus talhões em duas profundidades (0–20 cm e 20–40 cm). A coleta é georreferenciada e segue um protocolo técnico rigoroso.',
       icon: <MapPin size={32} />
     },
     {
-      id: 'Passo 2',
+      id: '02',
       title: 'Análise e diagnóstico completo',
       description: 'As amostras são processadas em laboratório e os resultados entram na nossa plataforma. Nossa tecnologia analisa mais de 72 variáveis — solo, clima, histórico, genética — e gera um diagnóstico detalhado de cada área da sua propriedade.',
       icon: <Search size={32} />
     },
     {
-      id: 'Passo 3',
+      id: '03',
       title: 'Você recebe um plano claro',
       description: 'Nada de relatório complicado que ninguém lê. Você recebe um mapa visual da sua fazenda com recomendações objetivas: qual adubo, em qual quantidade, em qual área, e por quê. O racional está junto com a recomendação.',
       icon: <FileCheck size={32} />
     },
     {
-      id: 'Passo 4',
+      id: '04',
       title: 'Acompanhamento durante toda a safra',
       description: 'Nossos agrônomos ficam com você do plantio à colheita. Monitoramento em tempo real, alertas de anomalias e suporte direto — para que as recomendações sejam aplicadas e os resultados, medidos.',
       icon: <Headset size={32} />
