@@ -41,6 +41,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Markdown from 'react-markdown';
 import { cn } from '@/src/lib/utils';
 import { isAdminEmail } from './lib/admins';
@@ -362,7 +363,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
         </motion.div>
       )}
 
-      {showAuthModal && (
+      {showAuthModal && createPortal(
         <div
           className="fixed inset-0 z-[70] bg-black/50 backdrop-blur-sm flex items-center justify-center px-4"
           onClick={closeAuthModal}
@@ -505,7 +506,8 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </nav>
   );
