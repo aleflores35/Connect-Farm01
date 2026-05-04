@@ -10,15 +10,16 @@ RUN npm ci
 FROM deps AS build
 COPY . .
 RUN npm run build
+RUN npx tsc server.ts --outDir dist-server --module nodenext --target es2022 --moduleResolution nodenext --esModuleInterop --skipLibCheck
 
 FROM base AS runner
 ENV NODE_ENV=production
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY package*.json ./
+RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
-COPY --from=build /app/server.ts ./server.ts
-COPY --from=build /app/package*.json ./
+COPY --from=build /app/dist-server/server.js ./server.js
 
 EXPOSE 3000
-CMD ["node", "--import", "tsx", "server.ts"]
+CMD ["node", "server.js"]
