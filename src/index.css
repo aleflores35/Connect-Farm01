@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@100..900&family=Outfit:wght@100..900&family=Sora:wght@100..800&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-headline: "Outfit", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+  --font-serif: "Cormorant Garamond", serif;
+  --font-sans: "Inter", sans-serif;
+
+  --color-primary: #064A17; /* Dark Green */
+  --color-primary-container: #064A17;
+  --color-tertiary: #868C14; /* Olive Green */
+  --color-tertiary-fixed: #F7C424; /* Yellow */
+  --color-on-tertiary-fixed: #064A17;
+  --color-surface: #FFFFFF;
+  --color-surface-container-low: #f8f9f8;
+  --color-surface-container-high: #f0f2f0;
+  --color-surface-container-highest: #e8ebe8;
+  --color-secondary: #3C9EA0; /* Teal */
+  --color-on-surface-variant: #424842;
+  --color-outline-variant: #c2c8bf;
+  
+  --color-logo-yellow: #F7C424;
+  --color-logo-teal: #3C9EA0;
+  --color-logo-olive: #868C14;
+  --color-logo-dark: #064A17;
+}
+
+@layer base {
+  body {
+    @apply bg-surface text-primary font-body;
+  }
+}
+
+.glass-panel {
+  background: rgba(245, 252, 239, 0.7);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}

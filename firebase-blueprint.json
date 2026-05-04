@@ -1,0 +1,42 @@
+{
+  "entities": {
+    "BlogPost": {
+      "title": "Blog Post",
+      "description": "A blog post article",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The title of the post" },
+        "excerpt": { "type": "string", "description": "A short summary of the post" },
+        "content": { "type": "string", "description": "The full content of the post" },
+        "category": { "type": "string", "description": "The category of the post" },
+        "date": { "type": "string", "format": "date-time", "description": "The publication date" },
+        "image": { "type": "string", "description": "URL of the cover image" },
+        "author": { "type": "string", "description": "The name of the author" },
+        "authorId": { "type": "string", "description": "The UID of the author" },
+        "status": { "type": "string", "enum": ["draft", "published"], "description": "The status of the post" }
+      },
+      "required": ["title", "content", "category", "date", "authorId", "status"]
+    },
+    "User": {
+      "title": "User",
+      "description": "A user of the application",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "user"] },
+        "displayName": { "type": "string" }
+      },
+      "required": ["email", "role"]
+    }
+  },
+  "firestore": {
+    "/posts/{postId}": {
+      "schema": "BlogPost",
+      "description": "Collection of blog posts"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles"
+    }
+  }
+}
