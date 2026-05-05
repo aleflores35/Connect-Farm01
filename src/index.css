@@ -38,3 +38,7 @@
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
 }
+
+.vertical-text {
+  writing-mode: vertical-rl;
+}
