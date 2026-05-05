@@ -165,6 +165,16 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
     setShowAuthModal(false);
   };
 
+  // Acesso ao painel admin via query param: ?admin=1 abre modal de login.
+  // Mantém o modal vivo sem expor CTA público (que agora vai pra global.connectfarm.com.br).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === '1') {
+      setShowAuthModal(true);
+      setAuthMode('login');
+    }
+  }, []);
+
   const friendlyAuthError = (code: string): string => {
     switch (code) {
       case 'auth/invalid-email': return 'Email inválido.';
@@ -317,12 +327,14 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={openAuthModal}
+                <a
+                  href="https://global.connectfarm.com.br/"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#e5b521] transition-all shadow-sm flex items-center gap-2"
                 >
                   Acesse sua Conta
-                </button>
+                </a>
               )}
             </div>
           </div>
@@ -354,12 +366,15 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
               {link.name}
             </button>
           ))}
-          <button
-            onClick={() => { setIsOpen(false); openAuthModal(); }}
-            className="w-full bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm"
+          <a
+            href="https://global.connectfarm.com.br/"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setIsOpen(false)}
+            className="block w-full text-center bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm"
           >
             Acesse sua Conta
-          </button>
+          </a>
         </motion.div>
       )}
 
@@ -1391,6 +1406,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                       alt={featuredPost.title}
                       loading="lazy"
                       decoding="async"
+                      style={{ imageOrientation: 'from-image' }}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
                       referrerPolicy="no-referrer"
                     />
@@ -1451,6 +1467,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                       alt={post.title}
                       loading="lazy"
                       decoding="async"
+                      style={{ imageOrientation: 'from-image' }}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       referrerPolicy="no-referrer"
                     />
@@ -1560,6 +1577,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
                   alt={post.title}
                   loading="lazy"
                   decoding="async"
+                  style={{ imageOrientation: 'from-image' }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   referrerPolicy="no-referrer"
                 />
@@ -1654,13 +1672,14 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
 
       {/* Immersive Header - Recipe 7 Style */}
       <header className="relative h-[80vh] w-full overflow-hidden">
-        <motion.img 
+        <motion.img
           initial={{ scale: 1.2 }}
           animate={{ scale: 1 }}
           transition={{ duration: 2 }}
-          src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop'} 
+          src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop'}
           alt={post.title}
           className="w-full h-full object-cover"
+          style={{ imageOrientation: 'from-image' }}
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#fdfdfb] via-primary/40 to-transparent" />
@@ -1753,7 +1772,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
                   onClick={() => onPostClick(rPost)}
                 >
                   <div className="aspect-video rounded-3xl overflow-hidden">
-                    <img src={rPost.image} alt={rPost.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={rPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} alt={rPost.title} loading="lazy" decoding="async" style={{ imageOrientation: 'from-image' }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <h4 className="text-2xl font-headline font-bold text-primary group-hover:text-tertiary transition-colors leading-tight">
                     {rPost.title}
@@ -2079,7 +2098,7 @@ const Footer = () => {
               AgTech com pé no barro e tecnologia no espaço.
             </p>
             <div className="flex gap-4">
-              <a href="http://connectfarm.com.br" target="_blank" rel="noopener noreferrer" className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+              <a href="https://connectfarm.com.br" target="_blank" rel="noopener noreferrer" className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
                 <Globe size={20} />
               </a>
               <a href="mailto:contato@connectfarm.com.br" className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
@@ -2094,10 +2113,10 @@ const Footer = () => {
           <div className="space-y-6">
             <h4 className="font-label text-xs uppercase tracking-widest font-bold text-tertiary-fixed">SERVIÇOS</h4>
             <ul className="space-y-4 text-surface/80">
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Análise de Solo</a></li>
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Monitoramento Satelital</a></li>
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Planejamento de Safra</a></li>
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Consultoria Agronômica</a></li>
+              <li><a href="#contato" className="hover:text-tertiary-fixed transition-colors">Análise de Solo</a></li>
+              <li><a href="#contato" className="hover:text-tertiary-fixed transition-colors">Monitoramento Satelital</a></li>
+              <li><a href="#contato" className="hover:text-tertiary-fixed transition-colors">Planejamento de Safra</a></li>
+              <li><a href="#contato" className="hover:text-tertiary-fixed transition-colors">Consultoria Agronômica</a></li>
             </ul>
           </div>
 
@@ -2114,10 +2133,6 @@ const Footer = () => {
 
         <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-surface/50 font-label">
           <p>© 2026 ConnectFARM. Todos os direitos reservados.</p>
-          <div className="flex gap-8">
-            <a href="#" className="hover:text-surface transition-colors">Política de Privacidade</a>
-            <a href="#" className="hover:text-surface transition-colors">Termos de Uso</a>
-          </div>
         </div>
       </div>
     </footer>
@@ -2177,14 +2192,12 @@ export default function App() {
                     Quero um diagnóstico da minha fazenda
                     <ArrowRight size={24} />
                   </a>
-                  <a 
-                    href={WHATSAPP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <a
+                    href="mailto:contato@connectfarm.com.br"
                     className="glass-panel text-primary border border-primary/20 px-10 py-5 rounded-2xl font-body font-bold text-xl flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors"
                   >
-                    <WhatsAppIcon size={24} />
-                    Falar pelo WhatsApp agora
+                    <Mail size={24} />
+                    Prefiro por email
                   </a>
                 </div>
               </div>
