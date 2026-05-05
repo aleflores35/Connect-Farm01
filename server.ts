@@ -9,6 +9,13 @@ dotenv.config();
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
+// Configuráveis via env vars do ambiente (AWS / Vercel / .env local) sem precisar redeploy de código.
+// FROM precisa ser email/domínio verificado no Resend (ou sandbox onboarding@resend.dev no início).
+// TO é o destinatário; em sandbox precisa ser email verificado na conta Resend.
+const DENUNCIA_FROM_EMAIL =
+  process.env.DENUNCIA_FROM_EMAIL || "Canal de Denúncias <onboarding@resend.dev>";
+const DENUNCIA_TO_EMAIL = process.env.DENUNCIA_TO_EMAIL || "rodrigo@connectfarm.com.br";
+
 async function startServer() {
   const app = express();
   const PORT = 3000;
@@ -63,8 +70,8 @@ async function startServer() {
       }
 
       const { data, error } = await resend.emails.send({
-        from: "Canal de Denúncias <onboarding@resend.dev>",
-        to: ["rodrigo@connectfarm.com.br"],
+        from: DENUNCIA_FROM_EMAIL,
+        to: [DENUNCIA_TO_EMAIL],
         subject: "Nova Denúncia - ConnectFARM",
         text: emailContent,
       });
