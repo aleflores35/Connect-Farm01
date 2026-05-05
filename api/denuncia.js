@@ -2,6 +2,12 @@ import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
+// Configuráveis via env vars do Vercel sem precisar redeploy de código.
+// FROM precisa ser email/domínio verificado no Resend (ou sandbox onboarding@resend.dev).
+// TO é o destinatário; em sandbox precisa ser email verificado na conta Resend.
+const FROM_EMAIL = process.env.DENUNCIA_FROM_EMAIL || "Canal de Denúncias <onboarding@resend.dev>";
+const TO_EMAIL = process.env.DENUNCIA_TO_EMAIL || "rodrigo@connectfarm.com.br";
+
 const MAX_MESSAGE_LEN = 5000;
 const MAX_NAME_LEN = 200;
 const MAX_PHONE_LEN = 50;
@@ -54,8 +60,8 @@ export default async function handler(req, res) {
     }
 
     const { data, error } = await resend.emails.send({
-      from: "Canal de Denúncias <onboarding@resend.dev>",
-      to: ["rodrigo@connectfarm.com.br"],
+      from: FROM_EMAIL,
+      to: [TO_EMAIL],
       subject: "Nova Denúncia - ConnectFARM",
       text: emailContent,
     });
