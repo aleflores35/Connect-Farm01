@@ -39,7 +39,8 @@ import {
   LayoutDashboard,
   FileText,
   Image as ImageIcon,
-  ChevronDown
+  ChevronDown,
+  Languages
 } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -1802,10 +1803,17 @@ const AdminPanel = () => {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [newPost, setNewPost] = useState({
     title: '',
     excerpt: '',
     content: '',
+    titleEn: '',
+    excerptEn: '',
+    contentEn: '',
+    titleEs: '',
+    excerptEs: '',
+    contentEs: '',
     category: t('admin.categoryTechnology'),
     image: '',
     status: 'draft' as 'draft' | 'published'
@@ -1865,6 +1873,53 @@ const AdminPanel = () => {
     }
   };
 
+  const handleTranslate = async () => {
+    if (!newPost.title || !newPost.excerpt || !newPost.content) {
+      alert(t('admin.alertTranslateRequired'));
+      return;
+    }
+
+    setIsTranslating(true);
+    try {
+      const response = await fetch('/api/translate-post', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newPost.title,
+          excerpt: newPost.excerpt,
+          content: newPost.content,
+        }),
+      });
+
+      const payload = await response.json();
+
+      if (!response.ok || !payload?.data?.en?.title) {
+        throw new Error(payload?.error || 'Invalid server response');
+      }
+
+      const { en, es } = payload.data;
+      setNewPost({
+        ...newPost,
+        titleEn: en.title,
+        excerptEn: en.excerpt,
+        contentEn: en.content,
+        titleEs: es.title,
+        excerptEs: es.excerpt,
+        contentEs: es.content,
+      });
+    } catch (error) {
+      console.error("Translation error:", error);
+      alert(t('admin.alertTranslateError'));
+    } finally {
+      setIsTranslating(false);
+    }
+  };
+
+  const buildLocalized = (pt: string, en: string, es: string): LocalizedString | string => {
+    if (!en && !es) return pt;
+    return { pt, en, es };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser || !db) {
@@ -1872,16 +1927,25 @@ const AdminPanel = () => {
       return;
     }
 
+    const postData = {
+      title: buildLocalized(newPost.title, newPost.titleEn, newPost.titleEs),
+      excerpt: buildLocalized(newPost.excerpt, newPost.excerptEn, newPost.excerptEs),
+      content: buildLocalized(newPost.content, newPost.contentEn, newPost.contentEs),
+      category: newPost.category,
+      image: newPost.image,
+      status: newPost.status,
+    };
+
     try {
       if (editingId) {
         await updateDoc(doc(db, 'posts', editingId), {
-          ...newPost,
+          ...postData,
           author: auth.currentUser.displayName || 'Admin',
           authorId: auth.currentUser.uid
         });
       } else {
         await addDoc(collection(db, 'posts'), {
-          ...newPost,
+          ...postData,
           date: new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }),
           author: auth.currentUser.displayName || 'Admin',
           authorId: auth.currentUser.uid
@@ -1889,9 +1953,15 @@ const AdminPanel = () => {
       }
       resetForm();
     } catch (error) {
-      console.error("Erro ao salvar post:", error);
+      console.error("Save error:", error);
       alert(t('admin.alertSaveError'));
     }
+  };
+
+  const extractLang = (field: LocalizedString | string | undefined, lang: 'en' | 'es'): string => {
+    if (!field) return '';
+    if (typeof field === 'string') return '';
+    return field[lang] || '';
   };
 
   const handleEdit = (post: BlogPost) => {
@@ -1899,6 +1969,12 @@ const AdminPanel = () => {
       title: readLocalized(post.title, 'pt'),
       excerpt: readLocalized(post.excerpt, 'pt'),
       content: readLocalized(post.content, 'pt'),
+      titleEn: extractLang(post.title, 'en'),
+      excerptEn: extractLang(post.excerpt, 'en'),
+      contentEn: extractLang(post.content, 'en'),
+      titleEs: extractLang(post.title, 'es'),
+      excerptEs: extractLang(post.excerpt, 'es'),
+      contentEs: extractLang(post.content, 'es'),
       category: post.category,
       image: post.image,
       status: post.status
@@ -1920,7 +1996,12 @@ const AdminPanel = () => {
   const resetForm = () => {
     setIsAdding(false);
     setEditingId(null);
-    setNewPost({ title: '', excerpt: '', content: '', category: t('admin.categoryTechnology'), image: '', status: 'draft' });
+    setNewPost({
+      title: '', excerpt: '', content: '',
+      titleEn: '', excerptEn: '', contentEn: '',
+      titleEs: '', excerptEs: '', contentEs: '',
+      category: t('admin.categoryTechnology'), image: '', status: 'draft'
+    });
   };
 
   return (
@@ -1949,20 +2030,31 @@ const AdminPanel = () => {
             className="glass-panel p-8 rounded-3xl mb-12 border border-primary/10"
           >
             <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="flex items-center justify-between gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                 <div className="flex items-center gap-3">
                   <Brain className="text-tertiary" size={24} />
                   <p className="text-sm font-medium text-primary">{t('admin.aiHelp')}</p>
                 </div>
-                <button
-                  type="button"
-                  onClick={handleGenerateAI}
-                  disabled={isGenerating}
-                  className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
-                >
-                  {isGenerating ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
-                  {isGenerating ? t('admin.generating') : t('admin.generateAI')}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleGenerateAI}
+                    disabled={isGenerating}
+                    className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isGenerating ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
+                    {isGenerating ? t('admin.generating') : t('admin.generateAI')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleTranslate}
+                    disabled={isTranslating}
+                    className="bg-tertiary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isTranslating ? <RefreshCw size={16} className="animate-spin" /> : <Languages size={16} />}
+                    {isTranslating ? t('admin.translating') : t('admin.translateAI')}
+                  </button>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -2035,6 +2127,70 @@ const AdminPanel = () => {
                   placeholder={t('admin.contentPlaceholder')}
                 />
               </div>
+
+              {/* Translations EN/ES */}
+              <div className="space-y-6 pt-6 border-t border-primary/10">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <Languages className="text-tertiary" size={20} />
+                    <h3 className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.translationsHeading')}</h3>
+                  </div>
+                  <p className="text-xs text-on-surface-variant">{t('admin.translationsHint')}</p>
+                </div>
+
+                {/* English */}
+                <div className="space-y-3 pl-4 border-l-2 border-tertiary/30">
+                  <div className="flex items-center gap-2">
+                    <img src="https://flagcdn.com/w20/us.png" alt="EN" className="w-5 h-auto rounded-sm" />
+                    <span className="text-sm font-bold text-primary uppercase tracking-wider">English</span>
+                  </div>
+                  <input
+                    value={newPost.titleEn}
+                    onChange={e => setNewPost({...newPost, titleEn: e.target.value})}
+                    placeholder={t('admin.titleLabel')}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                  />
+                  <textarea
+                    value={newPost.excerptEn}
+                    onChange={e => setNewPost({...newPost, excerptEn: e.target.value})}
+                    placeholder={t('admin.excerptLabel')}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-20"
+                  />
+                  <textarea
+                    value={newPost.contentEn}
+                    onChange={e => setNewPost({...newPost, contentEn: e.target.value})}
+                    placeholder={t('admin.contentLabel')}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-48"
+                  />
+                </div>
+
+                {/* Spanish */}
+                <div className="space-y-3 pl-4 border-l-2 border-secondary/30">
+                  <div className="flex items-center gap-2">
+                    <img src="https://flagcdn.com/w20/es.png" alt="ES" className="w-5 h-auto rounded-sm" />
+                    <span className="text-sm font-bold text-primary uppercase tracking-wider">Español</span>
+                  </div>
+                  <input
+                    value={newPost.titleEs}
+                    onChange={e => setNewPost({...newPost, titleEs: e.target.value})}
+                    placeholder={t('admin.titleLabel')}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
+                  />
+                  <textarea
+                    value={newPost.excerptEs}
+                    onChange={e => setNewPost({...newPost, excerptEs: e.target.value})}
+                    placeholder={t('admin.excerptLabel')}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-20"
+                  />
+                  <textarea
+                    value={newPost.contentEs}
+                    onChange={e => setNewPost({...newPost, contentEs: e.target.value})}
+                    placeholder={t('admin.contentLabel')}
+                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-48"
+                  />
+                </div>
+              </div>
+
               <button type="submit" className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors">
                 {editingId ? t('admin.saveChanges') : t('admin.publishArticle')}
               </button>
