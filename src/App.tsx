@@ -1700,25 +1700,37 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
       </header>
 
       {/* Content Area - Recipe 6 Style */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative">
-        <div className="absolute -left-32 top-24 hidden xl:flex flex-col items-center gap-8">
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16 lg:py-24 relative">
+        <div className="flex items-center justify-between gap-4 flex-wrap mb-12 sm:mb-16 pb-6 border-b border-primary/10">
           <button
             onClick={onBack}
-            className="flex flex-col items-center gap-4 text-primary/30 hover:text-tertiary transition-colors group"
+            className="group flex items-center gap-3 text-primary/70 hover:text-tertiary transition-colors"
           >
-            <div className="h-12 w-12 rounded-full border border-current flex items-center justify-center group-hover:scale-110 transition-transform">
-              <ArrowLeft size={20} />
-            </div>
-            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180">{t('blogPost.back')}</span>
+            <span className="h-10 w-10 rounded-full border border-current flex items-center justify-center group-hover:scale-110 transition-transform">
+              <ArrowLeft size={18} />
+            </span>
+            <span className="text-xs sm:text-sm font-bold tracking-widest uppercase">{t('blogPost.back')}</span>
           </button>
 
-          <div className="flex flex-col items-center gap-4 text-primary/20">
-            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180 mb-2">{t('blogPost.share')}</span>
-            <button onClick={shareOnWhatsApp} className="hover:text-[#25D366] transition-colors"><WhatsAppIcon size={20} /></button>
-            <button onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
-              alert(t('blogPost.copyLink'));
-            }} className="hover:text-primary transition-colors"><Globe size={20} /></button>
+          <div className="flex items-center gap-2 sm:gap-3 text-primary/60">
+            <span className="hidden sm:inline text-xs font-bold tracking-widest uppercase mr-2">{t('blogPost.share')}</span>
+            <button
+              onClick={shareOnWhatsApp}
+              aria-label="WhatsApp"
+              className="h-10 w-10 rounded-full border border-current flex items-center justify-center hover:text-[#25D366] hover:border-[#25D366] transition-colors"
+            >
+              <WhatsAppIcon size={18} />
+            </button>
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                alert(t('blogPost.copyLink'));
+              }}
+              aria-label={t('blogPost.copyLink')}
+              className="h-10 w-10 rounded-full border border-current flex items-center justify-center hover:text-tertiary hover:border-tertiary transition-colors"
+            >
+              <Globe size={18} />
+            </button>
           </div>
         </div>
 
