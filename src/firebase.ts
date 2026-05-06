@@ -7,9 +7,7 @@ import firebaseConfigRaw from '../firebase-applet-config.json';
 const firebaseConfig = (firebaseConfigRaw as any).default || firebaseConfigRaw;
 
 const app = initializeApp(firebaseConfig);
-console.log('Firebase initialized with config:', firebaseConfig);
 export const auth = getAuth(app);
 export const db = firebaseConfig.firestoreDatabaseId && firebaseConfig.firestoreDatabaseId !== '(default)'
   ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
   : getFirestore(app);
-console.log('Firestore instance (db):', db);

@@ -1,11 +1,11 @@
 import { motion } from 'motion/react';
-import { 
-  Sprout, 
-  Satellite, 
-  BarChart3, 
-  Map as MapIcon, 
-  Users, 
-  MessageSquare, 
+import {
+  Sprout,
+  Satellite,
+  BarChart3,
+  Map as MapIcon,
+  Users,
+  MessageSquare,
   Phone,
   Mail,
   Globe,
@@ -38,21 +38,22 @@ import {
   LogOut,
   LayoutDashboard,
   FileText,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ChevronDown
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Markdown from 'react-markdown';
 import { cn } from '@/src/lib/utils';
 import { isAdminEmail } from './lib/admins';
 import { db, auth } from './firebase';
-import { 
-  collection, 
-  query, 
-  orderBy, 
+import {
+  collection,
+  query,
+  orderBy,
   where,
-  onSnapshot, 
-  addDoc, 
+  onSnapshot,
+  addDoc,
   updateDoc,
   deleteDoc,
   getDocFromServer,
@@ -68,6 +69,9 @@ import {
   sendPasswordResetEmail,
   User as FirebaseUser
 } from 'firebase/auth';
+import { LangProvider } from './i18n/LangProvider';
+import { useT, useDict, useLang } from './i18n/LangProvider';
+import { LANG_FLAGS, LANG_SHORT, LANG_LABELS, LANGS, type Lang } from './i18n/types';
 
 const WHATSAPP_NUMBER = "555136300682";
 const WHATSAPP_DISPLAY = "+55 51 3630-0682";
@@ -89,11 +93,11 @@ interface BlogPost {
 // --- Components ---
 
 const WhatsAppIcon = ({ size = 24, className }: { size?: number, className?: string }) => (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 24 24" 
-    fill="currentColor" 
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    fill="currentColor"
     className={className}
     xmlns="http://www.w3.org/2000/svg"
   >
@@ -117,11 +121,12 @@ const FloatingWhatsApp = () => (
 );
 
 const Logo = ({ className, variant = 'default' }: { className?: string, variant?: 'default' | 'negative' }) => {
+  const t = useT();
   return (
     <div className={cn("flex items-center", className)}>
-      <img 
-        src="/logo.png" 
-        alt="ConnectFARM Logo" 
+      <img
+        src="/logo.png"
+        alt={t('nav.logoAlt')}
         className={cn(
           "h-10 md:h-12 w-auto object-contain",
           variant === 'negative' && "brightness-0 invert"
@@ -132,7 +137,62 @@ const Logo = ({ className, variant = 'default' }: { className?: string, variant?
   );
 };
 
+// Language selector dropdown (desktop + mobile)
+const LangSelector = ({ mobile = false }: { mobile?: boolean }) => {
+  const { lang, setLang } = useLang();
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen(!open)}
+        className={cn(
+          "flex items-center gap-1.5 text-xs font-bold text-[#064A17] hover:text-[#868C14] transition-colors",
+          mobile && "py-2"
+        )}
+        aria-label="Select language"
+      >
+        <img src={LANG_FLAGS[lang]} alt={LANG_LABELS[lang]} className="w-5 h-auto rounded-sm" />
+        <span>{LANG_SHORT[lang]}</span>
+        <ChevronDown size={12} className={cn("transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className={cn(
+          "absolute z-[80] bg-white border border-gray-100 rounded-xl shadow-lg py-1 min-w-[120px]",
+          mobile ? "right-0 top-full mt-1" : "right-0 top-full mt-2"
+        )}>
+          {LANGS.map((l: Lang) => (
+            <button
+              key={l}
+              onClick={() => { setLang(l); setOpen(false); }}
+              className={cn(
+                "w-full flex items-center gap-2 px-3 py-2 text-xs font-bold hover:bg-gray-50 transition-colors",
+                lang === l ? "text-[#868C14]" : "text-[#064A17]"
+              )}
+            >
+              <img src={LANG_FLAGS[l]} alt={LANG_LABELS[l]} className="w-5 h-auto rounded-sm" />
+              {LANG_LABELS[l]}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePage: (page: string) => void }) => {
+  const t = useT();
   const [isOpen, setIsOpen] = useState(false);
   const [user, setUser] = useState<FirebaseUser | null>(null);
 
@@ -165,17 +225,27 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
     setShowAuthModal(false);
   };
 
+  // Acesso ao painel admin via query param: ?admin=1 abre modal de login.
+  // Mantém o modal vivo sem expor CTA público (que agora vai pra global.connectfarm.com.br).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('admin') === '1') {
+      setShowAuthModal(true);
+      setAuthMode('login');
+    }
+  }, []);
+
   const friendlyAuthError = (code: string): string => {
     switch (code) {
-      case 'auth/invalid-email': return 'Email inválido.';
-      case 'auth/user-not-found': return 'Conta não encontrada.';
+      case 'auth/invalid-email': return t('auth.errors.invalidEmail');
+      case 'auth/user-not-found': return t('auth.errors.userNotFound');
       case 'auth/wrong-password':
-      case 'auth/invalid-credential': return 'Email ou senha incorretos.';
-      case 'auth/email-already-in-use': return 'Esse email já tem uma conta. Faça login.';
-      case 'auth/weak-password': return 'A senha precisa de pelo menos 6 caracteres.';
-      case 'auth/too-many-requests': return 'Muitas tentativas. Tente novamente em alguns minutos.';
-      case 'auth/network-request-failed': return 'Sem conexão. Verifique sua internet.';
-      default: return 'Não foi possível concluir. Tente novamente.';
+      case 'auth/invalid-credential': return t('auth.errors.wrongPassword');
+      case 'auth/email-already-in-use': return t('auth.errors.emailInUse');
+      case 'auth/weak-password': return t('auth.errors.weakPassword');
+      case 'auth/too-many-requests': return t('auth.errors.tooManyRequests');
+      case 'auth/network-request-failed': return t('auth.errors.networkFailed');
+      default: return t('auth.errors.defaultError');
     }
   };
 
@@ -218,10 +288,10 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
         closeAuthModal();
       } else {
         await sendPasswordResetEmail(auth, emailInput);
-        setAuthInfo('Se essa conta existir, você vai receber um link no seu email.');
+        setAuthInfo(t('auth.resetSuccess'));
       }
     } catch (error: any) {
-      console.error("Erro de autenticação:", error);
+      console.error("Auth error:", error);
       setAuthError(friendlyAuthError(error.code));
     } finally {
       setIsAuthSubmitting(false);
@@ -239,10 +309,10 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
   const isAdmin = isAdminEmail(user?.email);
 
   const navLinks = [
-    { name: 'HOME', id: 'home' },
-    { name: 'BLOG', id: 'blog' },
-    { name: 'CONTATO', id: 'contato' },
-    { name: 'PROGRAMA DE INTEGRIDADE', id: 'integridade' },
+    { name: t('nav.home'), id: 'home' },
+    { name: t('nav.blog'), id: 'blog' },
+    { name: t('nav.contato'), id: 'contato' },
+    { name: t('nav.integridade'), id: 'integridade' },
   ];
 
   const handleNavClick = (id: string) => {
@@ -274,7 +344,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
               <Logo />
             </button>
           </div>
-          
+
           <div className="hidden lg:flex items-center space-x-6">
             {navLinks.map((link) => (
               <button
@@ -288,46 +358,42 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                 {link.name}
               </button>
             ))}
-            
-            <div className="flex items-center gap-2 pl-4 border-l border-gray-200">
-              <div className="flex items-center gap-1 cursor-pointer">
-                <img 
-                  src="https://flagcdn.com/w20/br.png" 
-                  alt="Brasil" 
-                  className="w-5 h-auto"
-                />
-                <span className="text-[10px] text-gray-400">▼</span>
-              </div>
-              
+
+            <div className="flex items-center gap-3 pl-4 border-l border-gray-200">
+              <LangSelector />
+
               {user ? (
                 <div className="flex items-center gap-6">
-                  <button 
+                  <button
                     onClick={() => setActivePage('admin')}
                     className="bg-tertiary/10 text-tertiary px-4 py-2 rounded-xl font-bold text-xs hover:bg-tertiary hover:text-white transition-all border border-tertiary/20 flex items-center gap-2"
                   >
                     <LayoutDashboard size={16} />
-                    PAINEL BLOG
+                    {t('nav.adminPanel')}
                   </button>
                   <div className="flex items-center gap-4 pl-4 border-l border-outline-variant/20">
                     <div className="flex flex-col items-end">
                       <span className="text-xs font-bold text-primary">{user.displayName}</span>
-                      <button onClick={handleLogout} className="text-[10px] text-tertiary hover:underline">Sair</button>
+                      <button onClick={handleLogout} className="text-[10px] text-tertiary hover:underline">{t('nav.logout')}</button>
                     </div>
                     <img src={user.photoURL || ''} alt="Avatar" className="w-8 h-8 rounded-full border border-primary/10" />
                   </div>
                 </div>
               ) : (
-                <button
-                  onClick={openAuthModal}
+                <a
+                  href="https://global.connectfarm.com.br/"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm hover:bg-[#e5b521] transition-all shadow-sm flex items-center gap-2"
                 >
-                  Acesse sua Conta
-                </button>
+                  {t('nav.accessAccount')}
+                </a>
               )}
             </div>
           </div>
 
-          <div className="lg:hidden flex items-center">
+          <div className="lg:hidden flex items-center gap-3">
+            <LangSelector mobile />
             <button onClick={() => setIsOpen(!isOpen)} className="text-[#064A17]">
               {isOpen ? <X size={24} /> : <Menu size={24} />}
             </button>
@@ -337,7 +403,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
 
       {/* Mobile menu */}
       {isOpen && (
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           className="lg:hidden bg-white border-b border-outline-variant/20 px-4 pt-2 pb-6 space-y-4"
@@ -354,12 +420,15 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
               {link.name}
             </button>
           ))}
-          <button
-            onClick={() => { setIsOpen(false); openAuthModal(); }}
-            className="w-full bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm"
+          <a
+            href="https://global.connectfarm.com.br/"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setIsOpen(false)}
+            className="block w-full text-center bg-[#F7C424] text-[#064A17] px-6 py-3 rounded-full font-bold text-sm"
           >
-            Acesse sua Conta
-          </button>
+            {t('nav.accessAccount')}
+          </a>
         </motion.div>
       )}
 
@@ -375,18 +444,16 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
             <button
               onClick={closeAuthModal}
               className="absolute top-4 right-4 text-on-surface-variant hover:text-primary transition-colors"
-              aria-label="Fechar"
+              aria-label={t('auth.closeButton')}
             >
               <X size={20} />
             </button>
 
             <h2 className="font-headline text-3xl font-bold text-primary mb-2">
-              {authMode === 'signup' ? 'Criar conta' : authMode === 'reset' ? 'Recuperar senha' : 'Acesse sua conta'}
+              {authMode === 'signup' ? t('auth.modalTitleSignup') : authMode === 'reset' ? t('auth.modalTitleReset') : t('auth.modalTitleLogin')}
             </h2>
             <p className="text-on-surface-variant text-sm mb-6">
-              {authMode === 'reset'
-                ? 'Vamos enviar um link de recuperação para o seu email.'
-                : 'Use sua conta Google ou entre com email e senha.'}
+              {authMode === 'reset' ? t('auth.subtitleReset') : t('auth.subtitleDefault')}
             </p>
 
             {authMode !== 'reset' && (
@@ -403,7 +470,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                   {isLoggingIn ? (
                     <>
                       <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
-                      Acessando...
+                      {t('auth.googleLoading')}
                     </>
                   ) : (
                     <>
@@ -413,14 +480,14 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                         <path fill="#FBBC05" d="M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"/>
                         <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"/>
                       </svg>
-                      Continuar com Google
+                      {t('auth.googleSignIn')}
                     </>
                   )}
                 </button>
 
                 <div className="flex items-center gap-3 my-4">
                   <div className="flex-1 h-px bg-outline-variant/30" />
-                  <span className="text-xs text-on-surface-variant uppercase tracking-widest">ou</span>
+                  <span className="text-xs text-on-surface-variant uppercase tracking-widest">{t('auth.orDivider')}</span>
                   <div className="flex-1 h-px bg-outline-variant/30" />
                 </div>
               </>
@@ -428,21 +495,21 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
 
             <form onSubmit={handleEmailAuth} className="space-y-4">
               <div>
-                <label className="text-xs font-bold text-primary uppercase tracking-wider">Email</label>
+                <label className="text-xs font-bold text-primary uppercase tracking-wider">{t('auth.emailLabel')}</label>
                 <input
                   type="email"
                   required
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   className="mt-1 w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
-                  placeholder="seu@email.com"
+                  placeholder={t('auth.emailPlaceholder')}
                   autoComplete="email"
                 />
               </div>
 
               {authMode !== 'reset' && (
                 <div>
-                  <label className="text-xs font-bold text-primary uppercase tracking-wider">Senha</label>
+                  <label className="text-xs font-bold text-primary uppercase tracking-wider">{t('auth.passwordLabel')}</label>
                   <input
                     type="password"
                     required
@@ -450,7 +517,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                     value={passwordInput}
                     onChange={(e) => setPasswordInput(e.target.value)}
                     className="mt-1 w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
-                    placeholder={authMode === 'signup' ? 'Mínimo 6 caracteres' : 'Sua senha'}
+                    placeholder={authMode === 'signup' ? t('auth.passwordPlaceholderSignup') : t('auth.passwordPlaceholderLogin')}
                     autoComplete={authMode === 'signup' ? 'new-password' : 'current-password'}
                   />
                 </div>
@@ -479,7 +546,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
                 {isAuthSubmitting && (
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 )}
-                {authMode === 'signup' ? 'Criar conta' : authMode === 'reset' ? 'Enviar link' : 'Entrar'}
+                {authMode === 'signup' ? t('auth.signupButton') : authMode === 'reset' ? t('auth.resetButton') : t('auth.loginButton')}
               </button>
             </form>
 
@@ -487,21 +554,21 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
               {authMode === 'login' && (
                 <>
                   <button onClick={() => { setAuthMode('signup'); setAuthError(null); setAuthInfo(null); }} className="text-tertiary font-bold hover:underline">
-                    Criar uma conta
+                    {t('auth.createAccount')}
                   </button>
                   <button onClick={() => { setAuthMode('reset'); setAuthError(null); setAuthInfo(null); }} className="text-on-surface-variant hover:underline">
-                    Esqueci a senha
+                    {t('auth.forgotPassword')}
                   </button>
                 </>
               )}
               {authMode === 'signup' && (
                 <button onClick={() => { setAuthMode('login'); setAuthError(null); setAuthInfo(null); }} className="text-tertiary font-bold hover:underline">
-                  Já tenho conta
+                  {t('auth.alreadyHaveAccount')}
                 </button>
               )}
               {authMode === 'reset' && (
                 <button onClick={() => { setAuthMode('login'); setAuthError(null); setAuthInfo(null); }} className="text-tertiary font-bold hover:underline">
-                  Voltar para login
+                  {t('auth.backToLogin')}
                 </button>
               )}
             </div>
@@ -514,6 +581,7 @@ const Navbar = ({ activePage, setActivePage }: { activePage: string, setActivePa
 };
 
 const WhistleblowingChannel = () => {
+  const t = useT();
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [wantsContact, setWantsContact] = useState(false);
   const [name, setName] = useState('');
@@ -543,8 +611,8 @@ const WhistleblowingChannel = () => {
         body: JSON.stringify({
           isAnonymous,
           wantsContact,
-          name: isAnonymous ? 'Anônimo' : name,
-          phone: isAnonymous ? 'Anônimo' : phone,
+          name: isAnonymous ? t('whistleblowing.anonymousLabel') : name,
+          phone: isAnonymous ? t('whistleblowing.anonymousLabel') : phone,
           message,
           website: honeypot,
         }),
@@ -552,15 +620,15 @@ const WhistleblowingChannel = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao enviar denúncia');
+        throw new Error('Failed to submit report');
       }
 
       setSubmitted(true);
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
-        setError('A conexão demorou demais. Verifique sua internet e tente novamente.');
+        setError(t('whistleblowing.errorTimeout'));
       } else {
-        setError('Ocorreu um erro ao enviar sua denúncia. Por favor, tente novamente.');
+        setError(t('whistleblowing.errorGeneric'));
       }
       console.error(err);
     } finally {
@@ -575,15 +643,15 @@ const WhistleblowingChannel = () => {
         <div className="w-20 h-20 bg-[#064A17] rounded-full flex items-center justify-center text-white mb-8">
           <CheckCircle2 size={40} />
         </div>
-        <h2 className="text-4xl font-bold text-[#064A17] mb-4">Denúncia Enviada com Sucesso</h2>
+        <h2 className="text-4xl font-bold text-[#064A17] mb-4">{t('whistleblowing.successTitle')}</h2>
         <p className="text-gray-600 max-w-md mx-auto mb-8">
-          Sua denúncia foi recebida e será analisada pelo nosso comitê de ética com total sigilo e profissionalismo.
+          {t('whistleblowing.successBody')}
         </p>
-        <button 
+        <button
           onClick={() => setSubmitted(false)}
           className="text-[#868C14] font-bold hover:underline"
         >
-          Fazer outra denúncia
+          {t('whistleblowing.sendAnother')}
         </button>
       </section>
     );
@@ -595,22 +663,22 @@ const WhistleblowingChannel = () => {
         <div className="space-y-8">
           <div className="space-y-2">
             <h1 className="font-headline text-5xl lg:text-6xl font-bold text-[#F7C424] leading-tight">
-              Canal de
+              {t('whistleblowing.headlinePart1')}
             </h1>
             <h2 className="font-headline text-5xl lg:text-6xl font-bold text-[#064A17] leading-tight">
-              Denúncias
+              {t('whistleblowing.headlinePart2')}
             </h2>
           </div>
-          
+
           <p className="font-body text-[#064A17] text-lg leading-relaxed max-w-xl">
-            A ConnectFARM visa estar inserida no Cadastro Agroíntegro do Ministério da Agricultura e MapaBrasil. Portanto, nos comprometemos com a implementação de práticas e condutas de integridade, ética e transparência. Por isso, abrimos este canal para que qualquer pessoa nos relate e denuncie qualquer atividade relacionada a nós que ameace ferir esse comprometimento. Utilize o formulário seguro abaixo para fazer sua denúncia. Ela é muito importante para nós e pode ser feita de maneira anônima.
+            {t('whistleblowing.body')}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="bg-white p-2 space-y-6">
           {/* Honeypot field — hidden from real users, attractive to bots. */}
           <div className="absolute left-[-9999px] top-0" aria-hidden="true">
-            <label htmlFor="contact-website">Website (deixe em branco)</label>
+            <label htmlFor="contact-website">{t('whistleblowing.nameLabel')} (deixe em branco)</label>
             <input
               id="contact-website"
               type="text"
@@ -636,7 +704,7 @@ const WhistleblowingChannel = () => {
                 checked={isAnonymous}
                 onChange={() => setIsAnonymous(!isAnonymous)}
               />
-              <span className="text-sm text-gray-600">Desejo fazer a denúncia sem me identificar.</span>
+              <span className="text-sm text-gray-600">{t('whistleblowing.checkAnonymous')}</span>
             </label>
 
             <label className="flex items-center gap-3 cursor-pointer group">
@@ -646,22 +714,22 @@ const WhistleblowingChannel = () => {
               )}>
                 {wantsContact && <CheckCircle2 size={14} className="text-white" />}
               </div>
-              <input 
-                type="checkbox" 
-                className="hidden" 
-                checked={wantsContact} 
-                onChange={() => setWantsContact(!wantsContact)} 
+              <input
+                type="checkbox"
+                className="hidden"
+                checked={wantsContact}
+                onChange={() => setWantsContact(!wantsContact)}
               />
-              <span className="text-sm text-gray-600">Quero que entrem em contato comigo para falar sobre esta denúncia.</span>
+              <span className="text-sm text-gray-600">{t('whistleblowing.checkWantsContact')}</span>
             </label>
           </div>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <label className="font-label text-sm font-medium text-gray-500">Nome</label>
-              <input 
-                type="text" 
-                placeholder="Digite seu nome aqui"
+              <label className="font-label text-sm font-medium text-gray-500">{t('whistleblowing.nameLabel')}</label>
+              <input
+                type="text"
+                placeholder={t('whistleblowing.namePlaceholder')}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="font-body w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
@@ -670,10 +738,10 @@ const WhistleblowingChannel = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="font-label text-sm font-medium text-gray-500">Telefone</label>
-              <input 
-                type="tel" 
-                placeholder="+55 51 3630-0682"
+              <label className="font-label text-sm font-medium text-gray-500">{t('whistleblowing.phoneLabel')}</label>
+              <input
+                type="tel"
+                placeholder={t('whistleblowing.phonePlaceholder')}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="font-body w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#064A17]/20 focus:border-[#064A17] transition-all"
@@ -682,9 +750,9 @@ const WhistleblowingChannel = () => {
             </div>
 
             <div className="space-y-2">
-              <label className="font-label text-sm font-medium text-gray-500">Mensagem</label>
-              <textarea 
-                placeholder="Digite sua mensagem aqui"
+              <label className="font-label text-sm font-medium text-gray-500">{t('whistleblowing.messageLabel')}</label>
+              <textarea
+                placeholder={t('whistleblowing.messagePlaceholder')}
                 rows={6}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -701,7 +769,7 @@ const WhistleblowingChannel = () => {
             </div>
           )}
 
-          <button 
+          <button
             type="submit"
             disabled={isSubmitting}
             className={cn(
@@ -712,9 +780,9 @@ const WhistleblowingChannel = () => {
             {isSubmitting ? (
               <>
                 <RefreshCw size={18} className="animate-spin" />
-                Enviando...
+                {t('whistleblowing.sending')}
               </>
-            ) : "Enviar"}
+            ) : t('whistleblowing.submitButton')}
           </button>
         </form>
       </div>
@@ -723,12 +791,13 @@ const WhistleblowingChannel = () => {
 };
 
 const Hero = () => {
+  const t = useT();
   return (
     <section className="relative h-[calc(100vh-5rem)] flex items-center overflow-hidden">
       <div className="absolute inset-0 z-0">
-        <img 
-          src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2000&auto=format&fit=crop" 
-          alt="Agricultural field at dawn"
+        <img
+          src="https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=2000&auto=format&fit=crop"
+          alt={t('hero.imageAlt')}
           className="w-full h-full object-cover"
           referrerPolicy="no-referrer"
         />
@@ -737,7 +806,7 @@ const Hero = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full py-12 md:py-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -30 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.8 }}
@@ -745,35 +814,35 @@ const Hero = () => {
           >
             <div className="space-y-0">
               <h1 className="font-headline text-[1.9rem] sm:text-[2.5rem] md:text-[3.2rem] lg:text-[3.8rem] text-white leading-[1.0] tracking-tighter">
-                <span className="text-[#F7C424]">A Terra</span> não <br />
-                aceita desaforo <br />
-                e o <span className="text-[#F7C424]">seu bolso</span> não aceita
+                <span className="text-[#F7C424]">{t('hero.headlinePart1')}</span>{t('hero.headlinePart2')} <br />
+                {t('hero.headlinePart3')} <br />
+                {t('hero.headlinePart4')}<span className="text-[#F7C424]">{t('hero.headlinePart5')}</span>{t('hero.headlinePart6')}
               </h1>
               <h2 className="font-headline text-[1.9rem] sm:text-[2.5rem] md:text-[3.2rem] lg:text-[3.8rem] text-white leading-[1.0] tracking-tighter">
-                erro.
+                {t('hero.headlineSuffix')}
               </h2>
             </div>
-            
+
             <div className="max-w-xl space-y-6">
               <p className="text-white text-[22px] leading-[37px] font-body">
-                Dado sem agronomia é só planilha, e agronomia sem dado é só opinião. A ConnectFARM entrega a inteligência que o campo exige: diagnósticos reais para quem não tem tempo a perder com "acho que vai dar bom".
+                {t('hero.body')}
               </p>
-              
+
               <div className="flex flex-col sm:flex-row gap-4">
-                <a 
+                <a
                   href={WHATSAPP_URL}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="bg-[#868C14] text-white px-8 py-4 rounded-xl font-body font-bold text-lg hover:bg-[#6d7210] transition-all shadow-xl flex items-center justify-center gap-3"
                 >
-                  Quero um diagnóstico
+                  {t('hero.cta')}
                   <ArrowRight size={20} />
                 </a>
               </div>
             </div>
           </motion.div>
 
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.8, delay: 0.2 }}
@@ -785,38 +854,38 @@ const Hero = () => {
                   <BarChart3 size={32} />
                 </div>
                 <div>
-                  <p className="font-label text-xs uppercase tracking-[0.2em] text-[#064A17]/60 font-bold">DADOS REAIS DO CAMPO</p>
-                  <p className="font-headline font-bold text-3xl text-[#064A17]">Talhão 04 – Norte</p>
+                  <p className="font-label text-xs uppercase tracking-[0.2em] text-[#064A17]/60 font-bold">{t('hero.cardLabel')}</p>
+                  <p className="font-headline font-bold text-3xl text-[#064A17]">{t('hero.cardFieldName')}</p>
                 </div>
               </div>
-              
+
               <div className="space-y-6">
                 <div className="space-y-3">
                   <div className="flex justify-between text-lg font-bold text-[#064A17]">
-                    <span>Biomassa</span>
-                    <span>RVI 0,78</span>
+                    <span>{t('hero.cardBiomassLabel')}</span>
+                    <span>{t('hero.cardBiomassValue')}</span>
                   </div>
                   <div className="h-3 bg-[#064A17]/10 rounded-full overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: '78%' }}
                       transition={{ duration: 1.5, delay: 1 }}
-                      className="h-full bg-[#868C14]" 
+                      className="h-full bg-[#868C14]"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex justify-between text-lg font-bold text-[#064A17]">
-                    <span>Vigor Vegetativo</span>
-                    <span>NDVI 0.82</span>
+                    <span>{t('hero.cardVigorLabel')}</span>
+                    <span>{t('hero.cardVigorValue')}</span>
                   </div>
                   <div className="h-3 bg-[#064A17]/10 rounded-full overflow-hidden">
-                    <motion.div 
+                    <motion.div
                       initial={{ width: 0 }}
                       animate={{ width: '82%' }}
                       transition={{ duration: 1.5, delay: 1.2 }}
-                      className="h-full bg-[#F7C424]" 
+                      className="h-full bg-[#F7C424]"
                     />
                   </div>
                 </div>
@@ -824,7 +893,7 @@ const Hero = () => {
 
               <div className="pt-4 flex items-center gap-3 text-sm text-[#064A17]/70 font-bold">
                 <div className="h-2.5 w-2.5 rounded-full bg-[#3C9EA0] animate-pulse" />
-                Sincronizado via Satélite Radar (SAR)
+                {t('hero.cardSync')}
               </div>
             </div>
           </motion.div>
@@ -835,56 +904,45 @@ const Hero = () => {
 };
 
 const ForWhomSection = () => {
+  const t = useT();
+  const dict = useDict();
+  const cardIcons = [
+    <Settings size={24} />,
+    <BarChart3 size={24} />,
+    <Users size={24} />,
+    <Zap size={24} />,
+  ];
+  const cardBg = [
+    { bg: 'bg-primary/5', border: 'border-primary/10', iconBg: 'bg-primary', mt: '' },
+    { bg: 'bg-tertiary/5', border: 'border-tertiary/10', iconBg: 'bg-tertiary', mt: 'mt-8' },
+    { bg: 'bg-secondary/5', border: 'border-secondary/10', iconBg: 'bg-secondary', mt: '' },
+    { bg: 'bg-primary/5', border: 'border-primary/10', iconBg: 'bg-primary', mt: 'mt-8' },
+  ];
   return (
     <section className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-8">
-            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">PARA QUEM É A CONNECTFARM</span>
+            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('forWhom.sectionLabel')}</span>
             <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
-              Para o produtor que trata a fazenda como empresa.
+              {t('forWhom.title')}
             </h2>
             <div className="space-y-6 text-on-surface-variant text-lg leading-relaxed">
-              <p>
-                Você não planta por tradição. Você planta porque é um negócio — e você quer que ele seja rentável. Você acompanha custo, cobra resultado, e sabe que cada hectare precisa trabalhar por você.
-              </p>
-              <p>
-                A ConnectFARM foi feita para esse produtor: aquele que está no escritório ou na fazenda, que pode ser engenheiro agrônomo, advogado, empresário ou gestor de família — mas que, no fim do dia, olha para os números e cobra resultado.
-              </p>
-              <p className="font-bold text-primary">
-                Se você é esse produtor, a gente tem muito a conversar.
-              </p>
+              <p>{t('forWhom.body1')}</p>
+              <p>{t('forWhom.body2')}</p>
+              <p className="font-bold text-primary">{t('forWhom.body3')}</p>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-primary/5 p-8 rounded-3xl border border-primary/10 space-y-4">
-              <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-white">
-                <Settings size={24} />
+            {dict.forWhom.cards.map((card, i) => (
+              <div key={i} className={cn(`${cardBg[i].bg} p-8 rounded-3xl border ${cardBg[i].border} space-y-4`, cardBg[i].mt)}>
+                <div className={cn("h-12 w-12 rounded-xl flex items-center justify-center text-white", cardBg[i].iconBg)}>
+                  {cardIcons[i]}
+                </div>
+                <h4 className="font-headline font-bold text-xl text-primary">{card.title}</h4>
+                <p className="text-sm text-on-surface-variant">{card.description}</p>
               </div>
-              <h4 className="font-headline font-bold text-xl text-primary">Foco em Gestão</h4>
-              <p className="text-sm text-on-surface-variant">Para quem olha a fazenda como uma unidade de negócio.</p>
-            </div>
-            <div className="bg-tertiary/5 p-8 rounded-3xl border border-tertiary/10 space-y-4 mt-8">
-              <div className="h-12 w-12 rounded-xl bg-tertiary flex items-center justify-center text-white">
-                <BarChart3 size={24} />
-              </div>
-              <h4 className="font-headline font-bold text-xl text-primary">Cultura de Resultado</h4>
-              <p className="text-sm text-on-surface-variant">Decisões baseadas no que realmente traz retorno para o seu bolso.</p>
-            </div>
-            <div className="bg-secondary/5 p-8 rounded-3xl border border-secondary/10 space-y-4">
-              <div className="h-12 w-12 rounded-xl bg-secondary flex items-center justify-center text-white">
-                <Users size={24} />
-              </div>
-              <h4 className="font-headline font-bold text-xl text-primary">Sucessão Familiar</h4>
-              <p className="text-sm text-on-surface-variant">Tecnologia para profissionalizar a gestão da família.</p>
-            </div>
-            <div className="bg-primary/5 p-8 rounded-3xl border border-primary/10 space-y-4 mt-8">
-              <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-white">
-                <Zap size={24} />
-              </div>
-              <h4 className="font-headline font-bold text-xl text-primary">Eficiência em Escala</h4>
-              <p className="text-sm text-on-surface-variant">Gestão profissional para grandes áreas produtivas.</p>
-            </div>
+            ))}
           </div>
         </div>
       </div>
@@ -893,25 +951,20 @@ const ForWhomSection = () => {
 };
 
 const ProblemSection = () => {
+  const t = useT();
   return (
     <section className="py-32 bg-surface px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-8">
-            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">O PROBLEMA</span>
+            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('problem.sectionLabel')}</span>
             <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
-              Você planta certo, faz tudo certo — e ainda assim sobra menos do que deveria.
+              {t('problem.title')}
             </h2>
             <div className="space-y-6 text-on-surface-variant text-lg leading-relaxed">
-              <p>
-                Existe um paradoxo comum no agro: quanto mais experiente o produtor, mais ele acredita que já sabe o que o seu solo precisa. E é exatamente aí que mora a perda.
-              </p>
-              <p>
-                É como o nutricionista: a maioria das pessoas acha que sabe o que deve comer. E por isso, não vai ao especialista. Só que sem um diagnóstico real, você acaba tomando decisões baseadas no padrão da fazenda — não nos dados do seu solo.
-              </p>
-              <p className="font-bold text-primary">
-                O resultado? Adubo no lugar errado, cultivar inadequado pro talhão, correção insuficiente. Tudo isso vira custo invisível que aparece só no final da safra.
-              </p>
+              <p>{t('problem.body1')}</p>
+              <p>{t('problem.body2')}</p>
+              <p className="font-bold text-primary">{t('problem.body3')}</p>
             </div>
           </div>
           <div className="relative">
@@ -919,7 +972,7 @@ const ProblemSection = () => {
               {/* TODO: replace with actual ConnectFARM soil-sampling photo (placeholder Unsplash) */}
               <img
                 src="https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?q=80&w=800&auto=format&fit=crop"
-                alt="Amostras de solo no campo - ConnectFARM"
+                alt={t('problem.imageAlt')}
                 loading="lazy"
                 decoding="async"
                 className="w-full h-full object-cover"
@@ -927,8 +980,8 @@ const ProblemSection = () => {
               />
             </div>
             <div className="absolute -bottom-10 -left-10 bg-tertiary p-8 rounded-2xl shadow-xl text-white max-w-xs hidden md:block">
-              <p className="text-xl font-headline font-bold mb-2">Economia Real</p>
-              <p className="text-sm font-label uppercase tracking-wider opacity-80">Produtores ConnectFARM já economizaram até R$ 450,00 por hectare só ajustando a adubação.</p>
+              <p className="text-xl font-headline font-bold mb-2">{t('problem.calloutTitle')}</p>
+              <p className="text-sm font-label uppercase tracking-wider opacity-80">{t('problem.calloutBody')}</p>
             </div>
           </div>
         </div>
@@ -938,38 +991,39 @@ const ProblemSection = () => {
 };
 
 const WhyItMattersSection = () => {
+  const t = useT();
   return (
     <section className="py-32 bg-primary text-white px-4 sm:px-6 lg:px-8 overflow-hidden relative">
       <div className="absolute top-0 right-0 w-1/3 h-full bg-white/5 -skew-x-12 translate-x-20" />
       <div className="max-w-7xl mx-auto relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-8">
-            <span className="font-label text-xs uppercase tracking-[0.4em] text-tertiary-fixed font-bold">O DIFERENCIAL</span>
+            <span className="font-label text-xs uppercase tracking-[0.4em] text-tertiary-fixed font-bold">{t('whyItMatters.sectionLabel')}</span>
             <h2 className="font-headline text-4xl md:text-6xl font-bold tracking-tight leading-tight">
-              Em um mercado onde todo mundo quer te vender algo, a gente entrega resultado mensurável.
+              {t('whyItMatters.title')}
             </h2>
             <p className="text-white/80 text-xl leading-relaxed">
-              Você já sabe: todo dia tem alguém ligando, mandando mensagem, tentando vender alguma coisa para a sua fazenda. A oferta de produtos e serviços no agro é enorme — e a maioria não entrega o que promete.
+              {t('whyItMatters.body')}
             </p>
             <div className="bg-white/10 p-8 rounded-2xl border border-white/20">
               <p className="text-2xl md:text-3xl font-headline font-bold text-tertiary-fixed italic">
-                "A ConnectFARM não vende promessa. Vende diagnóstico, plano e acompanhamento. O resultado aparece no custo por hectare, na produtividade por talhão e no lucro líquido da safra."
+                {t('whyItMatters.quote')}
               </p>
             </div>
           </div>
           <div className="space-y-12">
             <div className="p-10 bg-white/5 rounded-3xl border border-white/10 space-y-6">
-              <p className="text-5xl md:text-7xl font-headline font-bold text-tertiary-fixed">R$ 450</p>
-              <p className="text-xl font-label uppercase tracking-widest text-white/60">Economia real por hectare</p>
+              <p className="text-5xl md:text-7xl font-headline font-bold text-tertiary-fixed">{t('whyItMatters.statValue')}</p>
+              <p className="text-xl font-label uppercase tracking-widest text-white/60">{t('whyItMatters.statLabel')}</p>
               <div className="pt-6 border-t border-white/10">
-                <p className="text-2xl font-headline font-bold">Resultado obtido em campo através do ajuste preciso da adubação.</p>
+                <p className="text-2xl font-headline font-bold">{t('whyItMatters.statDetail')}</p>
               </div>
             </div>
             <div className="flex items-center gap-6 p-6 bg-tertiary/20 rounded-2xl border border-tertiary/30">
               <div className="h-12 w-12 rounded-full bg-tertiary flex items-center justify-center shrink-0">
                 <CheckCircle2 size={24} />
               </div>
-              <p className="text-lg font-medium">Decisões baseadas em número, não em padrão genérico.</p>
+              <p className="text-lg font-medium">{t('whyItMatters.checkItem')}</p>
             </div>
           </div>
         </div>
@@ -979,56 +1033,34 @@ const WhyItMattersSection = () => {
 };
 
 const DiagnosisIncludesSection = () => {
-  const items = [
-    {
-      title: 'Mapeamento dos ambientes de produção',
-      description: 'Dividimos sua propriedade em zonas de potencial — alta, média e baixa — para que você saiba onde investir mais e onde corrigir primeiro. Chega de tratar a fazenda inteira do mesmo jeito.',
-      icon: <MapIcon size={24} />
-    },
-    {
-      title: 'Análise completa do solo em duas profundidades',
-      description: 'pH, matéria orgânica, fósforo, potássio, cálcio, magnésio, micronutrientes e muito mais. Você vê o que está limitando a produtividade em cada talhão.',
-      icon: <Droplets size={24} />
-    },
-    {
-      title: 'Mapa nutricional por talhão',
-      description: 'Visual, objetivo e fácil de usar na hora de tomar decisão. Você e sua equipe entendem de primeira.',
-      icon: <BarChart3 size={24} />
-    },
-    {
-      title: 'Recomendação de correção do solo',
-      description: 'Calcário, gesso, micronutrientes — indicamos o que precisa ser aplicado, com base nos dados reais, não no "padrão da região".',
-      icon: <FileCheck size={24} />
-    },
-    {
-      title: 'Plano de adubação com justificativa',
-      description: 'Cada recomendação vem explicada. Você sabe o que está investindo e qual retorno esperar. Decisão baseada em número.',
-      icon: <ClipboardList size={24} />
-    },
-    {
-      title: 'Planos de cobertura e rotação de culturas',
-      description: 'Para quem pensa na rentabilidade de longo prazo: orientamos o que plantar entre safras para manter e recuperar o solo produtivo.',
-      icon: <RefreshCw size={24} />
-    }
+  const dict = useDict();
+  const t = useT();
+  const icons = [
+    <MapIcon size={24} />,
+    <Droplets size={24} />,
+    <BarChart3 size={24} />,
+    <FileCheck size={24} />,
+    <ClipboardList size={24} />,
+    <RefreshCw size={24} />,
   ];
 
   return (
     <section className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 space-y-6">
-          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">O QUE O DIAGNÓSTICO INCLUI</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Um raio-x completo, talhão por talhão, da produtividade da sua fazenda.</h2>
+          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('diagnosis.sectionLabel')}</span>
+          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">{t('diagnosis.title')}</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {items.map((item, index) => (
-            <motion.div 
+          {dict.diagnosis.items.map((item, index) => (
+            <motion.div
               key={index}
               whileHover={{ y: -8 }}
               className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all border border-outline-variant/10 group flex flex-col"
             >
               <div className="h-12 w-12 bg-surface-container rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors mb-6 shrink-0">
-                {item.icon}
+                {icons[index]}
               </div>
               <h3 className="font-headline font-bold text-xl text-primary mb-4">{item.title}</h3>
               <p className="text-on-surface-variant text-sm leading-relaxed flex-grow">{item.description}</p>
@@ -1041,50 +1073,33 @@ const DiagnosisIncludesSection = () => {
 };
 
 const HowItWorksSection = () => {
-  const steps = [
-    {
-      id: '01',
-      title: 'A gente vai até você',
-      description: 'Um agrônomo ConnectFARM visita sua fazenda, entende seus objetivos e faz a coleta de solo nos seus talhões em duas profundidades (0–20 cm e 20–40 cm). A coleta é georreferenciada e segue um protocolo técnico rigoroso.',
-      icon: <MapPin size={32} />
-    },
-    {
-      id: '02',
-      title: 'Análise e diagnóstico completo',
-      description: 'As amostras são processadas em laboratório e os resultados entram na nossa plataforma. Nossa tecnologia analisa mais de 72 variáveis — solo, clima, histórico, genética — e gera um diagnóstico detalhado de cada área da sua propriedade.',
-      icon: <Search size={32} />
-    },
-    {
-      id: '03',
-      title: 'Você recebe um plano claro',
-      description: 'Nada de relatório complicado que ninguém lê. Você recebe um mapa visual da sua fazenda com recomendações objetivas: qual adubo, em qual quantidade, em qual área, e por quê. O racional está junto com a recomendação.',
-      icon: <FileCheck size={32} />
-    },
-    {
-      id: '04',
-      title: 'Acompanhamento durante toda a safra',
-      description: 'Nossos agrônomos ficam com você do plantio à colheita. Monitoramento em tempo real, alertas de anomalias e suporte direto — para que as recomendações sejam aplicadas e os resultados, medidos.',
-      icon: <Headset size={32} />
-    }
+  const dict = useDict();
+  const t = useT();
+  const stepIcons = [
+    <MapPin size={32} />,
+    <Search size={32} />,
+    <FileCheck size={32} />,
+    <Headset size={32} />,
   ];
+  const stepIds = ['01', '02', '03', '04'];
 
   return (
     <section className="py-32 bg-surface px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 space-y-6">
-          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">COMO FUNCIONA</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Coleta de Solo e Diagnóstico Agronômico</h2>
-          <p className="text-on-surface-variant max-w-2xl mx-auto">Antes de qualquer recomendação, a gente vai até a sua propriedade. Coletamos, analisamos e entregamos um diagnóstico preciso — o que seu solo tem, o que falta, e o que precisa mudar em cada área. Sem palpite. Sem padrão genérico. Dados reais da sua terra.</p>
+          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('howItWorks.sectionLabel')}</span>
+          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">{t('howItWorks.title')}</h2>
+          <p className="text-on-surface-variant max-w-2xl mx-auto">{t('howItWorks.intro')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 relative">
           <div className="hidden md:block absolute top-1/4 left-0 w-full h-0.5 bg-outline-variant/20 -z-10" />
-          {steps.map((step, i) => (
+          {dict.howItWorks.steps.map((step, i) => (
             <div key={i} className="text-center space-y-6">
               <div className="h-20 w-20 bg-white border-4 border-surface-container-high rounded-full flex items-center justify-center mx-auto text-primary shadow-lg relative">
-                {step.icon}
+                {stepIcons[i]}
                 <span className="absolute -top-2 -right-2 bg-tertiary text-white h-8 w-8 rounded-full flex items-center justify-center font-headline font-bold text-sm">
-                  {step.id}
+                  {stepIds[i]}
                 </span>
               </div>
               <h3 className="font-headline font-bold text-2xl text-primary">{step.title}</h3>
@@ -1098,14 +1113,8 @@ const HowItWorksSection = () => {
 };
 
 const PlatformSection = () => {
-  const features = [
-    'Mapa de fertilidade da fazenda por talhão',
-    'Histórico completo de análises e recomendações',
-    'Comparativo de desempenho entre áreas',
-    'Índice de Gestão Agronômica (IGA) — um score exclusivo ConnectFARM',
-    'Relatórios simplificados assistidos por inteligência artificial',
-    'Arquivos de taxa variável prontos para o seu maquinário, com 1 clique'
-  ];
+  const t = useT();
+  const dict = useDict();
 
   return (
     <section className="py-32 bg-surface-container-highest px-4 sm:px-6 lg:px-8 overflow-hidden">
@@ -1119,11 +1128,11 @@ const PlatformSection = () => {
                   <div className="h-12 w-12 rounded-xl bg-primary flex items-center justify-center text-white">
                     <Database size={24} />
                   </div>
-                  <h4 className="font-headline font-bold text-2xl text-primary">Plataforma CFARM</h4>
+                  <h4 className="font-headline font-bold text-2xl text-primary">{t('platform.cardTitle')}</h4>
                 </div>
-                <p className="text-sm font-bold text-primary">O que você acessa:</p>
+                <p className="text-sm font-bold text-primary">{t('platform.cardSubtitle')}</p>
                 <ul className="space-y-4">
-                  {features.map((feature, i) => (
+                  {dict.platform.features.map((feature, i) => (
                     <li key={i} className="flex items-start gap-3 text-on-surface-variant">
                       <CheckCircle2 className="text-tertiary shrink-0 mt-1" size={18} />
                       <span>{feature}</span>
@@ -1132,24 +1141,24 @@ const PlatformSection = () => {
                 </ul>
                 <div className="pt-6 border-t border-outline-variant/20">
                   <p className="text-sm font-medium text-primary">
-                    Compatível com as principais marcas de equipamentos do mercado.
+                    {t('platform.compatibility')}
                   </p>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <div className="space-y-8 order-1 lg:order-2">
-            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">A PLATAFORMA CFARM</span>
+            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('platform.sectionLabel')}</span>
             <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
-              Todos os dados da sua fazenda, organizados e acessíveis.
+              {t('platform.title')}
             </h2>
             <p className="text-on-surface-variant text-xl leading-relaxed">
-              Depois do diagnóstico, tudo fica registrado na plataforma CFARM. Você e seu agrônomo acessam o histórico da propriedade, acompanham os indicadores e planejam a próxima safra com segurança — de qualquer lugar.
+              {t('platform.body')}
             </p>
             <div className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-outline-variant/10 shadow-sm">
               <Brain className="text-tertiary" size={32} />
-              <p className="text-sm font-medium text-on-surface-variant">Relatórios inteligentes gerados com apoio de IA.</p>
+              <p className="text-sm font-medium text-on-surface-variant">{t('platform.aiNote')}</p>
             </div>
           </div>
         </div>
@@ -1159,51 +1168,33 @@ const PlatformSection = () => {
 };
 
 const OtherServicesSection = () => {
-  const services = [
-    {
-      title: 'Escolha assertiva de cultivares',
-      description: 'Dados reais de cultivares testados na sua região, por data de plantio. Pare de testar na raça — escolha a semente certa com base em resultado comprovado. Produtores ConnectFARM ganharam +5 sacas/ha só com essa mudança.',
-      icon: <Dna size={24} />
-    },
-    {
-      title: 'Gestão fitossanitária inteligente',
-      description: 'Defensivo certo, dose certa, momento certo. Sem desperdício, sem resistência, sem custo desnecessário.',
-      icon: <ShieldCheck size={24} />
-    },
-    {
-      title: 'Planejamento financeiro da safra',
-      description: 'Estimativa de custo por talhão, com foco em reduzir desperdícios e maximizar o retorno do investimento. Para o produtor que quer saber, antes de plantar, se o número fecha.',
-      icon: <DollarSign size={24} />
-    },
-    {
-      title: 'Monitoramento em tempo real',
-      description: 'Alertas sobre o desenvolvimento da lavoura via NDVI e dados pluviométricos. Você age antes do problema virar prejuízo.',
-      icon: <Eye size={24} />
-    },
-    {
-      title: 'Análise pós-safra',
-      description: 'Ao final de cada ciclo, analisamos o desempenho talhão a talhão. O que funcionou, o que pode melhorar, e o que fazer diferente na próxima safra. Cada safra deixa a próxima mais inteligente.',
-      icon: <RefreshCw size={24} />
-    }
+  const t = useT();
+  const dict = useDict();
+  const serviceIcons = [
+    <Dna size={24} />,
+    <ShieldCheck size={24} />,
+    <DollarSign size={24} />,
+    <Eye size={24} />,
+    <RefreshCw size={24} />,
   ];
 
   return (
     <section className="py-32 bg-surface px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 space-y-6">
-          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">OUTROS SERVIÇOS</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Para quem quer ir além do diagnóstico.</h2>
+          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('otherServices.sectionLabel')}</span>
+          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">{t('otherServices.title')}</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
-          {services.map((service, index) => (
-            <motion.div 
+          {dict.otherServices.items.map((service, index) => (
+            <motion.div
               key={index}
               whileHover={{ y: -8 }}
               className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all border border-outline-variant/10 group flex flex-col"
             >
               <div className="h-12 w-12 bg-surface-container rounded-xl flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors mb-6 shrink-0">
-                {service.icon}
+                {serviceIcons[index]}
               </div>
               <h3 className="font-headline font-bold text-xl text-primary mb-4">{service.title}</h3>
               <p className="text-on-surface-variant text-sm leading-relaxed flex-grow">{service.description}</p>
@@ -1216,26 +1207,21 @@ const OtherServicesSection = () => {
 };
 
 const ResultsSection = () => {
-  const stats = [
-    { label: 'Hectares analisados', value: '+1 milhão' },
-    { label: 'Produtores otimizados', value: '+500' },
-    { label: 'Economia em adubação', value: 'Até R$ 450/ha' },
-    { label: 'Ganho em produtividade', value: '+5 sacas/ha' },
-    { label: 'Aumento no lucro líquido', value: '10 a 15%' },
-  ];
+  const t = useT();
+  const dict = useDict();
 
   return (
     <section id="cases" className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-20 space-y-6">
-          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">POR QUE A CONNECTFARM</span>
-          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">Números reais que comprovam o resultado.</h2>
-          <p className="text-on-surface-variant max-w-2xl mx-auto">Sistema baseado em mais de 400 mil análises de solo e 10 anos de pesquisa em campo.</p>
+          <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('results.sectionLabel')}</span>
+          <h2 className="font-headline text-4xl md:text-5xl text-primary font-bold tracking-tight">{t('results.title')}</h2>
+          <p className="text-on-surface-variant max-w-2xl mx-auto">{t('results.subtitle')}</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6">
-          {stats.map((stat, i) => (
-            <motion.div 
+          {dict.results.stats.map((stat, i) => (
+            <motion.div
               key={i}
               initial={{ opacity: 0, scale: 0.9 }}
               whileInView={{ opacity: 1, scale: 1 }}
@@ -1253,25 +1239,26 @@ const ResultsSection = () => {
 };
 
 const AboutSection = () => {
+  const t = useT();
   return (
     <section className="py-32 bg-surface px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
           <div className="space-y-8">
-            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">QUEM ESTÁ POR TRÁS</span>
+            <span className="font-label text-xs uppercase tracking-[0.4em] text-secondary font-bold">{t('about.sectionLabel')}</span>
             <h2 className="font-headline text-4xl md:text-6xl text-primary font-bold tracking-tight">
-              Uma equipe que entende de campo e de tecnologia.
+              {t('about.title')}
             </h2>
             <p className="text-on-surface-variant text-xl leading-relaxed">
-              A ConnectFARM tem agrônomos, técnicos, desenvolvedores e biólogos trabalhando juntos — porque a gente acredita que dado sem agronomia é planilha, e agronomia sem dado é opinião.
+              {t('about.body1')}
             </p>
             <p className="text-on-surface-variant text-lg">
-              Estamos em mais de 8 estados brasileiros, com presença física em campo.
+              {t('about.body2')}
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <img src="/10.04.2026_17.29.26_REC.png" alt="Atendimento RTA ConnectFARM" loading="lazy" decoding="async" className="rounded-2xl h-64 w-full object-cover mt-12" referrerPolicy="no-referrer" />
-            <img src="https://images.unsplash.com/photo-1586771107445-d3ca888129ff?q=80&w=600&auto=format&fit=crop" alt="Lab work" loading="lazy" decoding="async" className="rounded-2xl h-64 w-full object-cover" referrerPolicy="no-referrer" />
+            <img src="/10.04.2026_17.29.26_REC.png" alt={t('about.imageAlt1')} loading="lazy" decoding="async" className="rounded-2xl h-64 w-full object-cover mt-12" referrerPolicy="no-referrer" />
+            <img src="https://images.unsplash.com/photo-1586771107445-d3ca888129ff?q=80&w=600&auto=format&fit=crop" alt={t('about.imageAlt2')} loading="lazy" decoding="async" className="rounded-2xl h-64 w-full object-cover" referrerPolicy="no-referrer" />
           </div>
         </div>
       </div>
@@ -1280,9 +1267,10 @@ const AboutSection = () => {
 };
 
 const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) => {
+  const t = useT();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('Todos');
+  const [activeCategory, setActiveCategory] = useState(t('blogPage.allCategory'));
 
   useEffect(() => {
     if (!db) {
@@ -1291,7 +1279,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
       return;
     }
     const q = query(
-      collection(db, 'posts'), 
+      collection(db, 'posts'),
       where('status', '==', 'published'),
       orderBy('date', 'desc')
     );
@@ -1310,9 +1298,10 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
     return () => unsubscribe();
   }, []);
 
-  const categories = ['Todos', ...new Set(posts.map(p => p.category))];
-  const filteredPosts = activeCategory === 'Todos' 
-    ? posts 
+  const allLabel = t('blogPage.allCategory');
+  const categories = [allLabel, ...new Set(posts.map(p => p.category))];
+  const filteredPosts = activeCategory === allLabel
+    ? posts
     : posts.filter(p => p.category === activeCategory);
 
   const featuredPost = posts[0];
@@ -1328,7 +1317,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
     return (
       <div className="pt-40 pb-20 text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-        <p className="mt-4 text-on-surface-variant font-sans">Carregando o universo ConnectFARM...</p>
+        <p className="mt-4 text-on-surface-variant font-sans">{t('blogPage.loading')}</p>
       </div>
     );
   }
@@ -1342,10 +1331,10 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
             <div className="space-y-6 max-w-3xl">
               <div className="font-label flex items-center gap-3 text-tertiary font-bold tracking-[0.2em] text-xs uppercase">
                 <span className="w-8 h-[1px] bg-tertiary" />
-                Editorial ConnectFARM
+                {t('blogPage.editorialLabel')}
               </div>
               <h1 className="text-6xl md:text-9xl font-headline font-bold text-primary leading-[0.85] tracking-tighter">
-                O Futuro do <br /> <span className="text-tertiary italic font-serif font-medium">Campo</span> Hoje.
+                {t('blogPage.blogTitle')} <br /> <span className="text-tertiary italic font-serif font-medium">{t('blogPage.blogTitleAccent')}</span> {t('blogPage.blogTitleSuffix')}
               </h1>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -1355,8 +1344,8 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                   onClick={() => setActiveCategory(cat)}
                   className={cn(
                     "px-6 py-2 rounded-full text-sm font-bold transition-all border",
-                    activeCategory === cat 
-                      ? "bg-primary text-white border-primary" 
+                    activeCategory === cat
+                      ? "bg-primary text-white border-primary"
                       : "bg-transparent text-primary border-primary/10 hover:border-primary/30"
                   )}
                 >
@@ -1371,13 +1360,13 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         {posts.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-on-surface-variant text-xl font-serif italic">Nenhum artigo publicado ainda.</p>
+            <p className="text-on-surface-variant text-xl font-serif italic">{t('blogPage.noPosts')}</p>
           </div>
         ) : (
           <div className="space-y-32">
             {/* Featured Post - Recipe 2 Style */}
-            {activeCategory === 'Todos' && featuredPost && (
-              <section 
+            {activeCategory === allLabel && featuredPost && (
+              <section
                 className="group cursor-pointer relative"
                 onClick={() => onPostClick(featuredPost)}
               >
@@ -1391,6 +1380,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                       alt={featuredPost.title}
                       loading="lazy"
                       decoding="async"
+                      style={{ imageOrientation: 'from-image' }}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000"
                       referrerPolicy="no-referrer"
                     />
@@ -1420,7 +1410,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
             )}
 
             {/* Grid Menu - Recipe 12 Style */}
-            <motion.section 
+            <motion.section
               initial="hidden"
               whileInView="show"
               viewport={{ once: true }}
@@ -1436,7 +1426,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-24"
             >
               {otherPosts.map((post, idx) => (
-                <motion.article 
+                <motion.article
                   variants={{
                     hidden: { opacity: 0, y: 20 },
                     show: { opacity: 1, y: 0 }
@@ -1451,6 +1441,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                       alt={post.title}
                       loading="lazy"
                       decoding="async"
+                      style={{ imageOrientation: 'from-image' }}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                       referrerPolicy="no-referrer"
                     />
@@ -1464,7 +1455,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                       <span className="w-4 h-[1px] bg-on-surface-variant/20" />
                       <span>{post.date}</span>
                       <span className="w-4 h-[1px] bg-on-surface-variant/20" />
-                      <span>{calculateReadingTime(post.content)} min de leitura</span>
+                      <span>{calculateReadingTime(post.content)} {t('blogPage.readingMin')}</span>
                     </div>
                     <h3 className="text-3xl font-headline font-bold text-primary leading-tight group-hover:text-tertiary transition-colors">
                       {post.title}
@@ -1484,6 +1475,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
 };
 
 const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostClick: (post: BlogPost) => void }) => {
+  const t = useT();
   const [posts, setPosts] = useState<BlogPost[]>([]);
 
   useEffect(() => {
@@ -1492,7 +1484,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
       return;
     }
     const q = query(
-      collection(db, 'posts'), 
+      collection(db, 'posts'),
       where('status', '==', 'published'),
       orderBy('date', 'desc')
     );
@@ -1521,15 +1513,15 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
         <div className="text-center mb-12 space-y-3">
           <div className="font-label flex items-center justify-center gap-3 text-tertiary font-bold tracking-[0.2em] text-[10px] uppercase">
             <span className="w-6 h-[1px] bg-tertiary" />
-            Conhecimento Aplicado
+            {t('blogPreview.sectionLabel')}
             <span className="w-6 h-[1px] bg-tertiary" />
           </div>
           <h2 className="text-3xl md:text-5xl font-headline font-bold text-primary tracking-tighter leading-tight">
-            Editorial <span className="italic font-serif font-light text-tertiary">ConnectFARM</span>
+            {t('blogPreview.editorialLabel')} <span className="italic font-serif font-light text-tertiary">ConnectFARM</span>
           </h2>
         </div>
 
-        <motion.div 
+        <motion.div
           initial="hidden"
           whileInView="show"
           viewport={{ once: true }}
@@ -1545,7 +1537,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {posts.map((post, idx) => (
-            <motion.article 
+            <motion.article
               variants={{
                 hidden: { opacity: 0, y: 20 },
                 show: { opacity: 1, y: 0 }
@@ -1560,6 +1552,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
                   alt={post.title}
                   loading="lazy"
                   decoding="async"
+                  style={{ imageOrientation: 'from-image' }}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   referrerPolicy="no-referrer"
                 />
@@ -1571,7 +1564,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
                 <div className="font-label flex items-center gap-2 text-[9px] font-bold tracking-widest text-on-surface-variant/50 uppercase">
                   <span>{post.date}</span>
                   <span className="w-3 h-[1px] bg-on-surface-variant/20" />
-                  <span>{calculateReadingTime(post.content)} min</span>
+                  <span>{calculateReadingTime(post.content)} {t('blogPreview.readingMin')}</span>
                 </div>
                 <h3 className="text-lg font-headline font-semibold text-primary leading-tight group-hover:text-tertiary transition-colors line-clamp-1">
                   {post.title}
@@ -1585,11 +1578,11 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
         </motion.div>
 
         <div className="mt-10 text-center">
-          <button 
+          <button
             onClick={onSeeAll}
             className="group inline-flex items-center gap-2 text-primary font-bold text-sm hover:text-tertiary transition-colors"
           >
-            <span className="border-b border-primary/20 group-hover:border-tertiary transition-colors pb-0.5">Acessar editorial completo</span>
+            <span className="border-b border-primary/20 group-hover:border-tertiary transition-colors pb-0.5">{t('blogPreview.seeAll')}</span>
             <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
@@ -1599,6 +1592,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
 };
 
 const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: () => void, onPostClick: (post: BlogPost) => void }) => {
+  const t = useT();
   const [scrollProgress, setScrollProgress] = useState(0);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
 
@@ -1620,7 +1614,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
       where('category', '==', post.category),
       orderBy('date', 'desc')
     );
-    
+
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const posts = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as BlogPost))
@@ -1640,34 +1634,35 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
 
   const shareOnWhatsApp = () => {
     const url = window.location.href;
-    const text = `Confira este artigo da ConnectFARM: ${post.title} - ${url}`;
+    const text = `${t('blogPost.share')}: ${post.title} - ${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   return (
     <div className="bg-[#fdfdfb] min-h-screen">
       {/* Reading Progress Bar */}
-      <motion.div 
+      <motion.div
         className="fixed top-0 left-0 h-1.5 bg-tertiary z-[60] origin-left"
         style={{ scaleX: scrollProgress / 100 }}
       />
 
       {/* Immersive Header - Recipe 7 Style */}
       <header className="relative h-[80vh] w-full overflow-hidden">
-        <motion.img 
+        <motion.img
           initial={{ scale: 1.2 }}
           animate={{ scale: 1 }}
           transition={{ duration: 2 }}
-          src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop'} 
+          src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop'}
           alt={post.title}
           className="w-full h-full object-cover"
+          style={{ imageOrientation: 'from-image' }}
           referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#fdfdfb] via-primary/40 to-transparent" />
-        
+
         <div className="absolute bottom-0 left-0 w-full p-4 sm:p-6 lg:p-20">
           <div className="max-w-4xl mx-auto space-y-8">
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
@@ -1676,9 +1671,9 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
               <span className="bg-tertiary px-3 py-1 rounded text-white">{post.category}</span>
               <span>{post.date}</span>
               <span className="w-1 h-1 rounded-full bg-white/40" />
-              <span>{calculateReadingTime(post.content)} min de leitura</span>
+              <span>{calculateReadingTime(post.content)} {t('blogPost.readingMin')}</span>
             </motion.div>
-            <motion.h1 
+            <motion.h1
               initial={{ opacity: 0, y: 30 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.7 }}
@@ -1686,7 +1681,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
             >
               {post.title}
             </motion.h1>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1 }}
@@ -1697,7 +1692,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
               </div>
               <div className="text-white">
                 <p className="text-xl font-bold">{post.author}</p>
-                <p className="text-sm opacity-70 uppercase tracking-widest">Especialista ConnectFARM</p>
+                <p className="text-sm opacity-70 uppercase tracking-widest">{t('blogPost.expertLabel')}</p>
               </div>
             </motion.div>
           </div>
@@ -1707,22 +1702,22 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
       {/* Content Area - Recipe 6 Style */}
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-24 relative">
         <div className="absolute -left-32 top-24 hidden xl:flex flex-col items-center gap-8">
-          <button 
+          <button
             onClick={onBack}
             className="flex flex-col items-center gap-4 text-primary/30 hover:text-tertiary transition-colors group"
           >
             <div className="h-12 w-12 rounded-full border border-current flex items-center justify-center group-hover:scale-110 transition-transform">
               <ArrowLeft size={20} />
             </div>
-            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180">Voltar</span>
+            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180">{t('blogPost.back')}</span>
           </button>
 
           <div className="flex flex-col items-center gap-4 text-primary/20">
-            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180 mb-2">Compartilhar</span>
+            <span className="text-[10px] font-bold tracking-widest uppercase vertical-text rotate-180 mb-2">{t('blogPost.share')}</span>
             <button onClick={shareOnWhatsApp} className="hover:text-[#25D366] transition-colors"><WhatsAppIcon size={20} /></button>
             <button onClick={() => {
               navigator.clipboard.writeText(window.location.href);
-              alert('Link copiado!');
+              alert(t('blogPost.copyLink'));
             }} className="hover:text-primary transition-colors"><Globe size={20} /></button>
           </div>
         </div>
@@ -1737,12 +1732,12 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
         {relatedPosts.length > 0 && (
           <section className="mt-40 pt-20 border-t border-primary/5">
             <div className="flex items-center justify-between mb-16">
-              <h3 className="text-4xl font-headline font-bold text-primary tracking-tight">Continue Lendo</h3>
-              <button 
+              <h3 className="text-4xl font-headline font-bold text-primary tracking-tight">{t('blogPost.continueReading')}</h3>
+              <button
                 onClick={onBack}
                 className="text-tertiary font-bold flex items-center gap-2 hover:gap-4 transition-all"
               >
-                Ver todos <ArrowRight size={20} />
+                {t('blogPost.seeAll')} <ArrowRight size={20} />
               </button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
@@ -1753,7 +1748,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
                   onClick={() => onPostClick(rPost)}
                 >
                   <div className="aspect-video rounded-3xl overflow-hidden">
-                    <img src={rPost.image} alt={rPost.title} loading="lazy" decoding="async" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={rPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} alt={rPost.title} loading="lazy" decoding="async" style={{ imageOrientation: 'from-image' }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <h4 className="text-2xl font-headline font-bold text-primary group-hover:text-tertiary transition-colors leading-tight">
                     {rPost.title}
@@ -1773,14 +1768,14 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
               </div>
               <div className="space-y-1">
                 <h4 className="text-2xl font-headline font-bold text-primary">{post.author}</h4>
-                <p className="text-on-surface-variant font-serif italic">Agrônomo e Pesquisador na ConnectFARM, focado em transformar dados em produtividade sustentável.</p>
+                <p className="text-on-surface-variant font-serif italic">{t('blogPost.authorRole')}</p>
               </div>
             </div>
-            <button 
+            <button
               onClick={onBack}
               className="bg-primary text-white px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-transform shadow-xl"
             >
-              Explorar mais artigos
+              {t('blogPost.exploreMore')}
             </button>
           </div>
         </footer>
@@ -1790,6 +1785,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
 };
 
 const AdminPanel = () => {
+  const t = useT();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1798,7 +1794,7 @@ const AdminPanel = () => {
     title: '',
     excerpt: '',
     content: '',
-    category: 'Tecnologia',
+    category: t('admin.categoryTechnology'),
     image: '',
     status: 'draft' as 'draft' | 'published'
   });
@@ -1823,7 +1819,7 @@ const AdminPanel = () => {
 
   const handleGenerateAI = async () => {
     if (!newPost.title) {
-      alert("Por favor, digite um título ou tema para a IA trabalhar.");
+      alert(t('admin.alertAITitle'));
       return;
     }
 
@@ -1838,7 +1834,7 @@ const AdminPanel = () => {
       const payload = await response.json();
 
       if (!response.ok || !payload?.data?.title) {
-        throw new Error(payload?.error || 'Resposta inválida do servidor');
+        throw new Error(payload?.error || 'Invalid server response');
       }
 
       const data = payload.data;
@@ -1850,8 +1846,8 @@ const AdminPanel = () => {
         category: data.category,
       });
     } catch (error) {
-      console.error("Erro na geração IA:", error);
-      alert("Erro ao gerar conteúdo com IA. Verifique se o servidor está configurado.");
+      console.error("AI generation error:", error);
+      alert(t('admin.alertAIError'));
     } finally {
       setIsGenerating(false);
     }
@@ -1860,7 +1856,7 @@ const AdminPanel = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth.currentUser || !db) {
-      if (!db) alert("Erro: Banco de dados não inicializado.");
+      if (!db) alert(t('admin.alertDbError'));
       return;
     }
 
@@ -1882,7 +1878,7 @@ const AdminPanel = () => {
       resetForm();
     } catch (error) {
       console.error("Erro ao salvar post:", error);
-      alert("Erro ao salvar. Verifique suas permissões.");
+      alert(t('admin.alertSaveError'));
     }
   };
 
@@ -1901,18 +1897,18 @@ const AdminPanel = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Tem certeza que deseja excluir este artigo?") || !db) return;
+    if (!confirm(t('admin.alertDeleteConfirm')) || !db) return;
     try {
       await deleteDoc(doc(db, 'posts', id));
     } catch (error) {
-      console.error("Erro ao excluir:", error);
+      console.error("Delete error:", error);
     }
   };
 
   const resetForm = () => {
     setIsAdding(false);
     setEditingId(null);
-    setNewPost({ title: '', excerpt: '', content: '', category: 'Tecnologia', image: '', status: 'draft' });
+    setNewPost({ title: '', excerpt: '', content: '', category: t('admin.categoryTechnology'), image: '', status: 'draft' });
   };
 
   return (
@@ -1923,19 +1919,19 @@ const AdminPanel = () => {
             <div className="h-12 w-12 bg-primary rounded-2xl flex items-center justify-center text-white">
               <LayoutDashboard size={24} />
             </div>
-            <h1 className="text-3xl font-headline font-bold text-primary">Painel do Blog</h1>
+            <h1 className="text-3xl font-headline font-bold text-primary">{t('admin.panelTitle')}</h1>
           </div>
-          <button 
+          <button
             onClick={() => isAdding ? resetForm() : setIsAdding(true)}
             className="bg-tertiary text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-transform"
           >
             {isAdding ? <X size={20} /> : <Plus size={20} />}
-            {isAdding ? 'Cancelar' : 'Novo Artigo'}
+            {isAdding ? t('admin.cancel') : t('admin.newArticle')}
           </button>
         </div>
 
         {isAdding && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             className="glass-panel p-8 rounded-3xl mb-12 border border-primary/10"
@@ -1944,98 +1940,98 @@ const AdminPanel = () => {
               <div className="flex items-center justify-between gap-4 p-4 bg-primary/5 rounded-2xl border border-primary/10">
                 <div className="flex items-center gap-3">
                   <Brain className="text-tertiary" size={24} />
-                  <p className="text-sm font-medium text-primary">Deseja ajuda da IA para escrever?</p>
+                  <p className="text-sm font-medium text-primary">{t('admin.aiHelp')}</p>
                 </div>
-                <button 
+                <button
                   type="button"
                   onClick={handleGenerateAI}
                   disabled={isGenerating}
                   className="bg-primary text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50"
                 >
                   {isGenerating ? <RefreshCw size={16} className="animate-spin" /> : <Zap size={16} />}
-                  Gerar com IA
+                  {isGenerating ? t('admin.generating') : t('admin.generateAI')}
                 </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-2 space-y-2">
-                  <label className="text-sm font-bold text-primary uppercase tracking-wider">Título / Tema</label>
-                  <input 
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.titleLabel')}</label>
+                  <input
                     required
                     value={newPost.title}
                     onChange={e => setNewPost({...newPost, title: e.target.value})}
                     className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
-                    placeholder="Ex: O impacto da adubação de precisão..."
+                    placeholder={t('admin.titlePlaceholder')}
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-primary uppercase tracking-wider">Status</label>
-                  <select 
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.statusLabel')}</label>
+                  <select
                     value={newPost.status}
                     onChange={e => setNewPost({...newPost, status: e.target.value as 'draft' | 'published'})}
                     className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
                   >
-                    <option value="draft">Rascunho</option>
-                    <option value="published">Publicado</option>
+                    <option value="draft">{t('admin.statusDraft')}</option>
+                    <option value="published">{t('admin.statusPublished')}</option>
                   </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-primary uppercase tracking-wider">Categoria</label>
-                  <select 
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.categoryLabel')}</label>
+                  <select
                     value={newPost.category}
                     onChange={e => setNewPost({...newPost, category: e.target.value})}
                     className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
                   >
-                    <option>Tecnologia</option>
-                    <option>Gestão</option>
-                    <option>Inovação</option>
-                    <option>Mercado</option>
+                    <option>{t('admin.categoryTechnology')}</option>
+                    <option>{t('admin.categoryManagement')}</option>
+                    <option>{t('admin.categoryInnovation')}</option>
+                    <option>{t('admin.categoryMarket')}</option>
                   </select>
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-bold text-primary uppercase tracking-wider">URL da Imagem</label>
-                  <input 
+                  <label className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.imageUrlLabel')}</label>
+                  <input
                     value={newPost.image}
                     onChange={e => setNewPost({...newPost, image: e.target.value})}
                     className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder={t('admin.imageUrlPlaceholder')}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-primary uppercase tracking-wider">Resumo (Excerpt)</label>
-                <textarea 
+                <label className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.excerptLabel')}</label>
+                <textarea
                   required
                   value={newPost.excerpt}
                   onChange={e => setNewPost({...newPost, excerpt: e.target.value})}
                   className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-20"
-                  placeholder="Uma breve descrição para a vitrine..."
+                  placeholder={t('admin.excerptPlaceholder')}
                 />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-bold text-primary uppercase tracking-wider">Conteúdo Completo</label>
-                <textarea 
+                <label className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.contentLabel')}</label>
+                <textarea
                   required
                   value={newPost.content}
                   onChange={e => setNewPost({...newPost, content: e.target.value})}
                   className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none h-64"
-                  placeholder="Escreva seu artigo aqui..."
+                  placeholder={t('admin.contentPlaceholder')}
                 />
               </div>
               <button type="submit" className="w-full bg-primary text-white py-4 rounded-xl font-bold text-lg hover:bg-primary/90 transition-colors">
-                {editingId ? 'Salvar Alterações' : 'Publicar Artigo'}
+                {editingId ? t('admin.saveChanges') : t('admin.publishArticle')}
               </button>
             </form>
           </motion.div>
         )}
 
         <div className="space-y-4">
-          <h2 className="text-xl font-bold text-primary mb-6">Artigos</h2>
+          <h2 className="text-xl font-bold text-primary mb-6">{t('admin.articlesHeading')}</h2>
           {posts.map(post => (
             <div key={post.id} className="bg-white p-6 rounded-2xl border border-outline-variant/50 flex items-center justify-between group hover:border-tertiary/30 transition-colors">
               <div className="flex items-center gap-4">
@@ -2043,14 +2039,14 @@ const AdminPanel = () => {
                   <img src={post.image || ''} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
                   {post.status === 'draft' && (
                     <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <span className="text-[8px] font-bold text-white uppercase tracking-tighter">Rascunho</span>
+                      <span className="text-[8px] font-bold text-white uppercase tracking-tighter">{t('admin.draftBadge')}</span>
                     </div>
                   )}
                 </div>
                 <div>
                   <h3 className="font-bold text-primary flex items-center gap-2">
                     {post.title}
-                    {post.status === 'draft' && <span className="text-[10px] bg-surface-container-high px-2 py-0.5 rounded text-on-surface-variant">Rascunho</span>}
+                    {post.status === 'draft' && <span className="text-[10px] bg-surface-container-high px-2 py-0.5 rounded text-on-surface-variant">{t('admin.draftBadge')}</span>}
                   </h3>
                   <p className="text-xs text-on-surface-variant">{post.date} • {post.category}</p>
                 </div>
@@ -2068,6 +2064,8 @@ const AdminPanel = () => {
 };
 
 const Footer = () => {
+  const t = useT();
+  const dict = useDict();
   return (
     <footer className="bg-primary text-surface py-20 px-4 sm:px-6 lg:px-8 border-t border-white/5">
       <div className="max-w-7xl mx-auto">
@@ -2075,11 +2073,10 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-2 space-y-6">
             <Logo variant="negative" />
             <p className="text-surface/70 max-w-md text-lg leading-relaxed">
-              Transformando a agricultura com inteligência de dados e presença real no campo. 
-              AgTech com pé no barro e tecnologia no espaço.
+              {t('footer.tagline')}
             </p>
             <div className="flex gap-4">
-              <a href="http://connectfarm.com.br" target="_blank" rel="noopener noreferrer" className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+              <a href="https://connectfarm.com.br" target="_blank" rel="noopener noreferrer" className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
                 <Globe size={20} />
               </a>
               <a href="mailto:contato@connectfarm.com.br" className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
@@ -2092,43 +2089,39 @@ const Footer = () => {
           </div>
 
           <div className="space-y-6">
-            <h4 className="font-label text-xs uppercase tracking-widest font-bold text-tertiary-fixed">SERVIÇOS</h4>
+            <h4 className="font-label text-xs uppercase tracking-widest font-bold text-tertiary-fixed">{t('footer.servicesHeading')}</h4>
             <ul className="space-y-4 text-surface/80">
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Análise de Solo</a></li>
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Monitoramento Satelital</a></li>
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Planejamento de Safra</a></li>
-              <li><a href="#" className="hover:text-tertiary-fixed transition-colors">Consultoria Agronômica</a></li>
+              {dict.footer.services.map((svc, i) => (
+                <li key={i}><a href="#contato" className="hover:text-tertiary-fixed transition-colors">{svc}</a></li>
+              ))}
             </ul>
           </div>
 
           <div className="space-y-6">
-            <h4 className="font-label text-xs uppercase tracking-widest font-bold text-tertiary-fixed">CONTATO</h4>
+            <h4 className="font-label text-xs uppercase tracking-widest font-bold text-tertiary-fixed">{t('footer.contactHeading')}</h4>
             <ul className="space-y-4 text-surface/80">
               <li className="flex items-center gap-2"><Phone size={16} className="text-tertiary-fixed" /> {WHATSAPP_DISPLAY}</li>
-              <li className="flex items-center gap-2"><Globe size={16} className="text-tertiary-fixed" /> connectfarm.com.br</li>
-              <li><a href="https://instagram.com/Connectfarm_" target="_blank" rel="noopener noreferrer" className="hover:text-tertiary-fixed transition-colors">Instagram: @Connectfarm_</a></li>
-              <li><a href="https://facebook.com/Connectfarmagr" target="_blank" rel="noopener noreferrer" className="hover:text-tertiary-fixed transition-colors">Facebook: @Connectfarmagr</a></li>
+              <li className="flex items-center gap-2"><Globe size={16} className="text-tertiary-fixed" /> {t('footer.websiteLabel')}</li>
+              <li><a href="https://instagram.com/Connectfarm_" target="_blank" rel="noopener noreferrer" className="hover:text-tertiary-fixed transition-colors">{t('footer.instagramHandle')}</a></li>
+              <li><a href="https://facebook.com/Connectfarmagr" target="_blank" rel="noopener noreferrer" className="hover:text-tertiary-fixed transition-colors">{t('footer.facebookHandle')}</a></li>
             </ul>
           </div>
         </div>
 
         <div className="pt-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-6 text-sm text-surface/50 font-label">
-          <p>© 2026 ConnectFARM. Todos os direitos reservados.</p>
-          <div className="flex gap-8">
-            <a href="#" className="hover:text-surface transition-colors">Política de Privacidade</a>
-            <a href="#" className="hover:text-surface transition-colors">Termos de Uso</a>
-          </div>
+          <p>{t('footer.copyright')}</p>
         </div>
       </div>
     </footer>
   );
 };
 
-// --- Main App ---
+// --- Main App (inner content, uses hooks) ---
 
-export default function App() {
+function AppContent() {
   const [activePage, setActivePage] = useState('home');
   const [selectedPost, setSelectedPost] = useState<BlogPost | null>(null);
+  const t = useT();
 
   const handlePostClick = (post: BlogPost) => {
     setSelectedPost(post);
@@ -2151,40 +2144,38 @@ export default function App() {
             <PlatformSection />
             <OtherServicesSection />
             <ResultsSection />
-            <BlogPreview 
-              onSeeAll={() => setActivePage('blog')} 
+            <BlogPreview
+              onSeeAll={() => setActivePage('blog')}
               onPostClick={handlePostClick}
             />
             <AboutSection />
-            
+
             {/* Final CTA Section */}
             <section id="contato" className="py-32 bg-surface-container-low px-4 sm:px-6 lg:px-8 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-tertiary to-transparent" />
               <div className="max-w-4xl mx-auto space-y-10 relative z-10">
                 <h2 className="font-headline text-4xl md:text-7xl text-primary font-bold tracking-tight">
-                  Você sabe o quanto custa não ter um diagnóstico?
+                  {t('contact.title')}
                 </h2>
                 <p className="text-on-surface-variant text-xl md:text-2xl leading-relaxed">
-                  O primeiro passo é simples: fale com um agrônomo ConnectFARM. A gente mostra, com dados, onde está o potencial da sua fazenda — e o que fazer para chegar lá.
+                  {t('contact.body')}
                 </p>
                 <div className="flex flex-col sm:flex-row gap-6 justify-center pt-6">
-                  <a 
+                  <a
                     href={WHATSAPP_URL}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="bg-tertiary text-white px-10 py-5 rounded-2xl font-body font-bold text-xl hover:scale-105 transition-transform shadow-xl flex items-center justify-center gap-3"
                   >
-                    Quero um diagnóstico da minha fazenda
+                    {t('contact.ctaPrimary')}
                     <ArrowRight size={24} />
                   </a>
-                  <a 
-                    href={WHATSAPP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <a
+                    href="mailto:contato@connectfarm.com.br"
                     className="glass-panel text-primary border border-primary/20 px-10 py-5 rounded-2xl font-body font-bold text-xl flex items-center justify-center gap-3 hover:bg-primary/5 transition-colors"
                   >
-                    <WhatsAppIcon size={24} />
-                    Falar pelo WhatsApp agora
+                    <Mail size={24} />
+                    {t('contact.ctaEmail')}
                   </a>
                 </div>
               </div>
@@ -2200,18 +2191,18 @@ export default function App() {
           <WhistleblowingChannel />
         ) : (
           <section className="py-40 px-4 text-center min-h-[calc(100vh-96px)] flex flex-col items-center justify-center">
-            <p className="font-label text-xs uppercase tracking-[0.4em] text-tertiary font-bold mb-6">404</p>
+            <p className="font-label text-xs uppercase tracking-[0.4em] text-tertiary font-bold mb-6">{t('notFound.label')}</p>
             <h2 className="font-headline text-5xl md:text-7xl font-bold text-primary mb-6 tracking-tight">
-              Página não encontrada
+              {t('notFound.title')}
             </h2>
             <p className="text-on-surface-variant text-lg max-w-md mb-10">
-              O endereço que você procura não existe ou foi movido. Volte pra home e a gente segue de lá.
+              {t('notFound.body')}
             </p>
             <button
               onClick={() => setActivePage('home')}
               className="bg-primary text-white px-8 py-4 rounded-2xl font-bold hover:scale-105 transition-transform shadow-xl"
             >
-              Voltar para a Home
+              {t('notFound.backHome')}
             </button>
           </section>
         )}
@@ -2219,5 +2210,15 @@ export default function App() {
       <Footer />
       <FloatingWhatsApp />
     </div>
+  );
+}
+
+// --- Default export wraps everything in LangProvider ---
+
+export default function App() {
+  return (
+    <LangProvider>
+      <AppContent />
+    </LangProvider>
   );
 }
