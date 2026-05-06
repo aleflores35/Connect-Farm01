@@ -71,7 +71,7 @@ import {
 } from 'firebase/auth';
 import { LangProvider } from './i18n/LangProvider';
 import { useT, useDict, useLang } from './i18n/LangProvider';
-import { LANG_FLAGS, LANG_SHORT, LANG_LABELS, LANGS, type Lang } from './i18n/types';
+import { LANG_FLAGS, LANG_SHORT, LANG_LABELS, LANGS, readLocalized, type Lang, type LocalizedString } from './i18n/types';
 
 const WHATSAPP_NUMBER = "555136300682";
 const WHATSAPP_DISPLAY = "+55 51 3630-0682";
@@ -79,9 +79,9 @@ const WHATSAPP_URL = `https://wa.me/${WHATSAPP_NUMBER}`;
 
 interface BlogPost {
   id: string;
-  title: string;
-  excerpt: string;
-  content: string;
+  title: LocalizedString | string;
+  excerpt: LocalizedString | string;
+  content: LocalizedString | string;
   category: string;
   date: string;
   image: string;
@@ -1267,7 +1267,7 @@ const AboutSection = () => {
 };
 
 const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) => {
-  const t = useT();
+  const { t, lang } = useLang();
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(t('blogPage.allCategory'));
@@ -1377,7 +1377,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                       whileInView={{ scale: 1 }}
                       transition={{ duration: 1.5 }}
                       src={featuredPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1200&auto=format&fit=crop'}
-                      alt={featuredPost.title}
+                      alt={readLocalized(featuredPost.title, lang)}
                       loading="lazy"
                       decoding="async"
                       style={{ imageOrientation: 'from-image' }}
@@ -1389,10 +1389,10 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                     <div className="space-y-4">
                       <span className="font-label text-tertiary font-bold tracking-widest text-xs uppercase">{featuredPost.category}</span>
                       <h2 className="text-4xl md:text-6xl font-headline font-bold text-primary leading-tight group-hover:text-tertiary transition-colors">
-                        {featuredPost.title}
+                        {readLocalized(featuredPost.title, lang)}
                       </h2>
                       <p className="text-xl text-on-surface-variant leading-relaxed font-serif italic">
-                        {featuredPost.excerpt}
+                        {readLocalized(featuredPost.excerpt, lang)}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -1438,7 +1438,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                   <div className="relative aspect-[4/5] rounded-[2.5rem] overflow-hidden">
                     <img
                       src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'}
-                      alt={post.title}
+                      alt={readLocalized(post.title, lang)}
                       loading="lazy"
                       decoding="async"
                       style={{ imageOrientation: 'from-image' }}
@@ -1455,13 +1455,13 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
                       <span className="w-4 h-[1px] bg-on-surface-variant/20" />
                       <span>{post.date}</span>
                       <span className="w-4 h-[1px] bg-on-surface-variant/20" />
-                      <span>{calculateReadingTime(post.content)} {t('blogPage.readingMin')}</span>
+                      <span>{calculateReadingTime(readLocalized(post.content, lang))} {t('blogPage.readingMin')}</span>
                     </div>
                     <h3 className="text-3xl font-headline font-bold text-primary leading-tight group-hover:text-tertiary transition-colors">
-                      {post.title}
+                      {readLocalized(post.title, lang)}
                     </h3>
                     <p className="text-on-surface-variant line-clamp-2 font-serif text-lg italic opacity-80">
-                      {post.excerpt}
+                      {readLocalized(post.excerpt, lang)}
                     </p>
                   </div>
                 </motion.article>
@@ -1475,7 +1475,7 @@ const BlogPage = ({ onPostClick }: { onPostClick: (post: BlogPost) => void }) =>
 };
 
 const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostClick: (post: BlogPost) => void }) => {
-  const t = useT();
+  const { t, lang } = useLang();
   const [posts, setPosts] = useState<BlogPost[]>([]);
 
   useEffect(() => {
@@ -1549,7 +1549,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
               <div className="relative aspect-video rounded-xl overflow-hidden shadow-sm group-hover:shadow-md transition-all duration-500">
                 <img
                   src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'}
-                  alt={post.title}
+                  alt={readLocalized(post.title, lang)}
                   loading="lazy"
                   decoding="async"
                   style={{ imageOrientation: 'from-image' }}
@@ -1564,13 +1564,13 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
                 <div className="font-label flex items-center gap-2 text-[9px] font-bold tracking-widest text-on-surface-variant/50 uppercase">
                   <span>{post.date}</span>
                   <span className="w-3 h-[1px] bg-on-surface-variant/20" />
-                  <span>{calculateReadingTime(post.content)} {t('blogPreview.readingMin')}</span>
+                  <span>{calculateReadingTime(readLocalized(post.content, lang))} {t('blogPreview.readingMin')}</span>
                 </div>
                 <h3 className="text-lg font-headline font-semibold text-primary leading-tight group-hover:text-tertiary transition-colors line-clamp-1">
-                  {post.title}
+                  {readLocalized(post.title, lang)}
                 </h3>
                 <p className="text-on-surface-variant line-clamp-2 font-serif text-sm italic opacity-70 leading-relaxed">
-                  {post.excerpt}
+                  {readLocalized(post.excerpt, lang)}
                 </p>
               </div>
             </motion.article>
@@ -1592,7 +1592,7 @@ const BlogPreview = ({ onSeeAll, onPostClick }: { onSeeAll: () => void, onPostCl
 };
 
 const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: () => void, onPostClick: (post: BlogPost) => void }) => {
-  const t = useT();
+  const { t, lang } = useLang();
   const [scrollProgress, setScrollProgress] = useState(0);
   const [relatedPosts, setRelatedPosts] = useState<BlogPost[]>([]);
 
@@ -1634,7 +1634,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
 
   const shareOnWhatsApp = () => {
     const url = window.location.href;
-    const text = `${t('blogPost.share')}: ${post.title} - ${url}`;
+    const text = `${t('blogPost.share')}: ${readLocalized(post.title, lang)} - ${url}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
@@ -1653,7 +1653,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
           animate={{ scale: 1 }}
           transition={{ duration: 2 }}
           src={post.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=1600&auto=format&fit=crop'}
-          alt={post.title}
+          alt={readLocalized(post.title, lang)}
           className="w-full h-full object-cover"
           style={{ imageOrientation: 'from-image' }}
           referrerPolicy="no-referrer"
@@ -1671,7 +1671,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
               <span className="bg-tertiary px-3 py-1 rounded text-white">{post.category}</span>
               <span>{post.date}</span>
               <span className="w-1 h-1 rounded-full bg-white/40" />
-              <span>{calculateReadingTime(post.content)} {t('blogPost.readingMin')}</span>
+              <span>{calculateReadingTime(readLocalized(post.content, lang))} {t('blogPost.readingMin')}</span>
             </motion.div>
             <motion.h1
               initial={{ opacity: 0, y: 30 }}
@@ -1679,7 +1679,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
               transition={{ delay: 0.7 }}
               className="text-5xl md:text-8xl font-headline font-bold text-white leading-[0.85] tracking-tighter"
             >
-              {post.title}
+              {readLocalized(post.title, lang)}
             </motion.h1>
             <motion.div
               initial={{ opacity: 0 }}
@@ -1724,7 +1724,7 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
 
         <div className="prose prose-2xl max-w-none text-primary/90 leading-[1.7] font-serif selection:bg-tertiary/20">
           <div className="mb-16 [&>p:first-of-type]:first-letter:text-8xl [&>p:first-of-type]:first-letter:font-light [&>p:first-of-type]:first-letter:text-tertiary [&>p:first-of-type]:first-letter:mr-3 [&>p:first-of-type]:first-letter:float-left [&>p:first-of-type]:first-letter:leading-[0.8]">
-            <Markdown>{post.content}</Markdown>
+            <Markdown>{readLocalized(post.content, lang)}</Markdown>
           </div>
         </div>
 
@@ -1748,10 +1748,10 @@ const BlogPostPage = ({ post, onBack, onPostClick }: { post: BlogPost, onBack: (
                   onClick={() => onPostClick(rPost)}
                 >
                   <div className="aspect-video rounded-3xl overflow-hidden">
-                    <img src={rPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} alt={rPost.title} loading="lazy" decoding="async" style={{ imageOrientation: 'from-image' }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={rPost.image || 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?q=80&w=800&auto=format&fit=crop'} alt={readLocalized(rPost.title, lang)} loading="lazy" decoding="async" style={{ imageOrientation: 'from-image' }} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   </div>
                   <h4 className="text-2xl font-headline font-bold text-primary group-hover:text-tertiary transition-colors leading-tight">
-                    {rPost.title}
+                    {readLocalized(rPost.title, lang)}
                   </h4>
                 </article>
               ))}
@@ -1884,9 +1884,9 @@ const AdminPanel = () => {
 
   const handleEdit = (post: BlogPost) => {
     setNewPost({
-      title: post.title,
-      excerpt: post.excerpt,
-      content: post.content,
+      title: readLocalized(post.title, 'pt'),
+      excerpt: readLocalized(post.excerpt, 'pt'),
+      content: readLocalized(post.content, 'pt'),
       category: post.category,
       image: post.image,
       status: post.status
@@ -2045,7 +2045,7 @@ const AdminPanel = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-primary flex items-center gap-2">
-                    {post.title}
+                    {readLocalized(post.title, 'pt')}
                     {post.status === 'draft' && <span className="text-[10px] bg-surface-container-high px-2 py-0.5 rounded text-on-surface-variant">{t('admin.draftBadge')}</span>}
                   </h3>
                   <p className="text-xs text-on-surface-variant">{post.date} • {post.category}</p>
