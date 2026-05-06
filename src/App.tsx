@@ -73,6 +73,7 @@ import {
 import { LangProvider } from './i18n/LangProvider';
 import { useT, useDict, useLang } from './i18n/LangProvider';
 import { LANG_FLAGS, LANG_SHORT, LANG_LABELS, LANGS, readLocalized, type Lang, type LocalizedString } from './i18n/types';
+import { ImageInput } from './components/ImageInput';
 
 const WHATSAPP_NUMBER = "555136300682";
 const WHATSAPP_DISPLAY = "+55 51 3630-0682";
@@ -2097,11 +2098,9 @@ const AdminPanel = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-primary uppercase tracking-wider">{t('admin.imageUrlLabel')}</label>
-                  <input
+                  <ImageInput
                     value={newPost.image}
-                    onChange={e => setNewPost({...newPost, image: e.target.value})}
-                    className="w-full bg-white border border-outline-variant rounded-xl px-4 py-3 focus:ring-2 focus:ring-tertiary outline-none"
-                    placeholder={t('admin.imageUrlPlaceholder')}
+                    onChange={(url) => setNewPost({ ...newPost, image: url })}
                   />
                 </div>
               </div>

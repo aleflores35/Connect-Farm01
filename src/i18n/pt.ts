@@ -303,6 +303,23 @@ export const pt = {
     alertSaveError: 'Erro ao salvar. Verifique suas permissões.',
     alertDeleteConfirm: 'Tem certeza que deseja excluir este artigo?',
     alertDbError: 'Erro: Banco de dados não inicializado.',
+    image: {
+      tabUrl: 'URL',
+      tabUpload: 'Upload',
+      tabAi: 'Gerar com IA',
+      urlPlaceholder: 'https://images.unsplash.com/...',
+      uploadHint: 'PNG, JPG ou WebP. Compressão automática para 1600×900 antes do envio.',
+      aiPlaceholder: 'Descreva a imagem que deseja gerar (ex: "campo de soja no entardecer com pivô central de irrigação ao fundo, fotografia editorial").',
+      aiGenerate: 'Gerar imagem',
+      aiGenerating: 'Gerando...',
+      aiRemaining: 'Restam {count} de {limit} imagens nesta sessão',
+      uploading: 'Enviando imagem...',
+      removeImage: 'Remover imagem',
+      errorUpload: 'Erro ao enviar a imagem. Tente novamente.',
+      errorAi: 'Erro ao gerar imagem com IA.',
+      errorPromptEmpty: 'Descreva a imagem que deseja gerar.',
+      errorAiLimit: 'Limite de gerações por sessão atingido. Recarregue a página para zerar.',
+    },
   },
 
   contact: {

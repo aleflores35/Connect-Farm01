@@ -2,12 +2,26 @@ import express from "express";
 import path from "path";
 import { Resend } from "resend";
 import { GoogleGenAI, Type } from "@google/genai";
+import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const ai = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+  secure: true,
+});
+
+const cloudinaryConfigured = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
 
 // Configuráveis via env vars do ambiente (AWS / Vercel / .env local) sem precisar redeploy de código.
 // FROM precisa ser email/domínio verificado no Resend (ou sandbox onboarding@resend.dev no início).
@@ -20,7 +34,8 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // Limit aumentado de 100kb default pra 10mb por causa de upload de imagem em base64.
+  app.use(express.json({ limit: "10mb" }));
 
   // API route for whistleblowing form
   app.post("/api/denuncia", async (req, res) => {
@@ -223,6 +238,99 @@ ${content}`;
     } catch (err) {
       console.error("Translation error:", err);
       return res.status(500).json({ error: "Erro ao traduzir conteúdo com IA" });
+    }
+  });
+
+  // API route for image upload to Cloudinary (admin uploads from PC)
+  app.post("/api/upload-image", async (req, res) => {
+    if (!cloudinaryConfigured) {
+      return res.status(503).json({ error: "Cloudinary não configurado no servidor" });
+    }
+
+    const { image } = req.body || {};
+    if (!image || typeof image !== "string" || !image.startsWith("data:image/")) {
+      return res.status(400).json({ error: "Imagem (data URI base64) é obrigatória" });
+    }
+    if (image.length > 8 * 1024 * 1024) {
+      return res.status(413).json({ error: "Imagem muito grande. Máximo ~5MB após compressão" });
+    }
+
+    try {
+      const result = await cloudinary.uploader.upload(image, {
+        folder: "connectfarm-blog",
+        resource_type: "image",
+        format: "webp",
+        transformation: [{ width: 1600, height: 900, crop: "limit", quality: "auto:good" }],
+      });
+      return res.status(200).json({
+        success: true,
+        url: result.secure_url,
+        publicId: result.public_id,
+        width: result.width,
+        height: result.height,
+        bytes: result.bytes,
+      });
+    } catch (err) {
+      console.error("Erro upload Cloudinary:", err);
+      return res.status(500).json({ error: "Erro ao subir imagem" });
+    }
+  });
+
+  // API route for AI image generation (Imagen 3 -> Cloudinary)
+  app.post("/api/generate-image", async (req, res) => {
+    if (!ai) {
+      return res.status(503).json({ error: "GEMINI_API_KEY não configurada no servidor" });
+    }
+    if (!cloudinaryConfigured) {
+      return res.status(503).json({ error: "Cloudinary não configurado no servidor" });
+    }
+
+    const { prompt } = req.body || {};
+    if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
+      return res.status(400).json({ error: "Prompt é obrigatório" });
+    }
+    if (prompt.length > 1000) {
+      return res.status(400).json({ error: "Prompt muito longo (máx 1000 caracteres)" });
+    }
+
+    try {
+      const response = await ai.models.generateImages({
+        model: "imagen-3.0-fast-generate-001",
+        prompt,
+        config: {
+          numberOfImages: 1,
+          aspectRatio: "16:9",
+          outputMimeType: "image/png",
+        },
+      });
+
+      const generated = (response as any)?.generatedImages?.[0]?.image?.imageBytes;
+      if (!generated) {
+        return res.status(502).json({ error: "Modelo não retornou imagem" });
+      }
+
+      const dataUri = `data:image/png;base64,${generated}`;
+      const upload = await cloudinary.uploader.upload(dataUri, {
+        folder: "connectfarm-blog/ai-generated",
+        resource_type: "image",
+        format: "webp",
+        transformation: [{ width: 1600, height: 900, crop: "limit", quality: "auto:good" }],
+        context: { prompt: prompt.slice(0, 500) },
+      });
+
+      return res.status(200).json({
+        success: true,
+        url: upload.secure_url,
+        publicId: upload.public_id,
+        width: upload.width,
+        height: upload.height,
+        bytes: upload.bytes,
+        prompt,
+      });
+    } catch (err) {
+      console.error("Erro ao gerar imagem:", err);
+      const message = (err as any)?.message || "Erro ao gerar imagem com IA";
+      return res.status(500).json({ error: message });
     }
   });
 
